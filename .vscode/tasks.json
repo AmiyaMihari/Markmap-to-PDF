@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "markmap -> PDF/PNG/SVG (archivo abierto)",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "args": ["${workspaceFolder}/markmap2pdf.py", "${file}"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "markmap -> solo PDF (archivo abierto)",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "args": ["${workspaceFolder}/markmap2pdf.py", "${file}", "--no-png", "--no-svg"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "Setup del entorno (venv + playwright)",
+      "type": "shell",
+      "command": "bash",
+      "args": ["${workspaceFolder}/setup.sh"],
+      "problemMatcher": []
+    }
+  ]
+}

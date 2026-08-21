@@ -1,0 +1,29 @@
+# entorno virtual
+.venv/
+venv/
+env/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# temporales del script
+.*.tmp.html
+
+# salidas generadas (los mapas exportados no se versionan)
+*.pdf
+*.png
+*.svg
+!docs/*.png
+!docs/*.svg
+
+# sistema / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/extensions.json

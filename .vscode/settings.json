@@ -1,0 +1,15 @@
+{
+  // Al abrir esta carpeta, VS Code usa y ACTIVA solo el venv del proyecto
+  // en cada terminal nueva (no hace falta escribir "source .venv/bin/activate").
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "python.terminal.activateEnvInCurrentTerminal": true,
+
+  // Usar bash en las terminales integradas de este proyecto (no fish).
+  "terminal.integrated.defaultProfile.linux": "bash",
+
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.*.tmp.html": true
+  }
+}

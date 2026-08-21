@@ -1,0 +1,8 @@
+# markmap2pdf — dependencias
+#
+#   python -m venv .venv
+#   source .venv/bin/activate
+#   pip install -r requirements.txt
+#   playwright install chromium     # <- descarga el navegador (no va en pip)
+#
+playwright==1.62.0
