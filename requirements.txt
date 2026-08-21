@@ -1,8 +1,17 @@
 # markmap2pdf — dependencias
 #
+#   bash setup.sh          <- hace todo esto por ti
+#
+# o a mano:
 #   python -m venv .venv
 #   source .venv/bin/activate
 #   pip install -r requirements.txt
 #   playwright install chromium     # <- descarga el navegador (no va en pip)
 #
 playwright==1.62.0
+
+# interfaz web (app.py)
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32
+pypdf==6.16.1

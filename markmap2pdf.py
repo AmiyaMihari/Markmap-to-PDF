@@ -2,7 +2,7 @@
 """
 markmap2pdf.py
 ==============
-Convierte un mapa de markmap en un PDF (vectorial, texto seleccionable),
+Convierte un mapa de markmap en PDF (vectorial, texto seleccionable),
 PNG de alta resolucion y SVG limpio:
 
   * fondo blanco
@@ -10,25 +10,20 @@ PNG de alta resolucion y SVG limpio:
   * recortado exacto al contenido (sin margenes gigantes que recortar a mano)
   * una sola pagina del tamano justo del mapa -> se inserta en Word tal cual
 
-Modos de uso
-------------
-1) Desde Markdown (recomendado, ya no necesitas descargar el HTML):
+Se puede usar de dos formas:
 
-       python markmap2pdf.py mapa.md
+  1. Como programa de linea de comandos:
 
-2) Desde el HTML que descargas del REPL ("Download as interactive HTML"):
+         python markmap2pdf.py mapa.md
+         python markmap2pdf.py ~/Downloads/markmap.html
 
-       python markmap2pdf.py markmap.html
+  2. Como modulo, desde la interfaz web (app.py):
 
-Opciones utiles:
-       --out CARPETA     carpeta de salida (default: junto al archivo)
-       --pad 24          margen blanco alrededor, en px (default 20)
-       --scale 3         factor de resolucion del PNG (default 3 = ~288 dpi)
-       --png / --no-pdf / --svg   que formatos generar (default: pdf + png + svg)
+         out = await render_to_bytes(browser, md_text, "md")
+         out["pdf"], out["png"], out["svg"], out["width"], out["height"]
 
 Instalacion (una sola vez):
-       pip install playwright
-       playwright install chromium
+       bash setup.sh
 """
 
 from __future__ import annotations
@@ -43,9 +38,19 @@ try:
 except ImportError:  # pragma: no cover
     sys.exit(
         "Falta Playwright. Instala con:\n"
-        "    pip install playwright\n"
-        "    playwright install chromium"
+        "    bash setup.sh\n"
+        "o bien:\n"
+        "    pip install -r requirements.txt && playwright install chromium"
     )
+
+
+DEFAULT_PAD = 20
+DEFAULT_SCALE = 3
+MD_SUFFIXES = (".md", ".markdown", ".txt")
+
+
+class MarkmapError(RuntimeError):
+    """El mapa no se pudo renderizar (markdown invalido, CDN caido, etc.)."""
 
 
 # --------------------------------------------------------------------------- #
@@ -171,103 +176,144 @@ __STYLES__
 """
 
 
-async def render(src: pathlib.Path, args) -> list[pathlib.Path]:
+# --------------------------------------------------------------------------- #
+# Motor reutilizable (lo usan tanto el CLI como la interfaz web).
+# --------------------------------------------------------------------------- #
+async def _load_map(page, source: str, kind: str) -> None:
+    """Deja la pagina con el mapa ya renderizado.
+
+    kind: "md"   -> `source` es texto Markdown
+          "html" -> `source` es el HTML completo descargado del REPL
+          "url"  -> `source` es una URL (file:// o http://)
+    """
+    if kind == "md":
+        md = source.replace("</script", "<\\/script")
+        await page.set_content(MD_TEMPLATE.replace("__MARKDOWN__", md),
+                               wait_until="networkidle")
+        await page.wait_for_function("window.__mmReady === true", timeout=60000)
+        err = await page.evaluate("window.__mmError")
+        if err:
+            raise MarkmapError(f"markmap no pudo procesar el Markdown: {err}")
+        return
+
+    if kind == "html":
+        await page.set_content(source, wait_until="networkidle")
+    else:
+        await page.goto(source, wait_until="networkidle")
+
+    try:
+        await page.wait_for_selector("svg g", timeout=60000)
+    except Exception as exc:  # noqa: BLE001
+        raise MarkmapError(
+            "No se encontro ningun mapa en ese HTML. Asegurate de que sea el "
+            "archivo de \"Download as interactive HTML\" del REPL de markmap."
+        ) from exc
+    await page.wait_for_timeout(800)  # deja terminar la animacion inicial
+
+
+async def render_to_bytes(
+    browser,
+    source: str,
+    kind: str,
+    pad: int = DEFAULT_PAD,
+    scale: int = DEFAULT_SCALE,
+    want: tuple[str, ...] = ("pdf", "png", "svg"),
+) -> dict:
+    """Renderiza el mapa y devuelve los bytes de cada formato pedido.
+
+    Devuelve {"width": int, "height": int, "pdf": bytes, "png": bytes, "svg": bytes}
+    (solo las llaves de `want`). No escribe NADA en disco.
+    """
+    ctx = await browser.new_context(
+        viewport={"width": 1920, "height": 1200},
+        device_scale_factor=scale,
+        color_scheme="light",  # evita que el tema oscuro se cuele
+    )
+    try:
+        page = await ctx.new_page()
+        await _load_map(page, source, kind)
+
+        data = await page.evaluate(JS_EXTRACT, pad)
+        w, h = data["w"], data["h"]
+        out: dict = {"width": w, "height": h}
+
+        if "svg" in want:
+            out["svg"] = (
+                '<?xml version="1.0" encoding="UTF-8"?>\n' + data["svg"]
+            ).encode("utf-8")
+
+        if "pdf" in want or "png" in want:
+            wrapper = (
+                WRAPPER.replace("__W__", str(w))
+                .replace("__H__", str(h))
+                .replace("__STYLES__", data["styles"])
+                .replace(
+                    "__LINKS__",
+                    "\n".join(
+                        f'<link rel="stylesheet" href="{u}">' for u in data["links"]
+                    ),
+                )
+                .replace("__SVG__", data["svg"])
+            )
+            page2 = await ctx.new_page()
+            await page2.set_content(wrapper, wait_until="networkidle")
+            await page2.wait_for_timeout(300)
+
+            if "pdf" in want:
+                out["pdf"] = await page2.pdf(
+                    width=f"{w}px",
+                    height=f"{h}px",
+                    print_background=True,
+                    margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
+                    page_ranges="1",
+                )
+
+            if "png" in want:
+                await page2.set_viewport_size(
+                    {"width": min(w, 16000), "height": min(h, 16000)}
+                )
+                out["png"] = await page2.screenshot(
+                    clip={"x": 0, "y": 0, "width": w, "height": h},
+                    scale="device",
+                )
+
+        return out
+    finally:
+        await ctx.close()
+
+
+# --------------------------------------------------------------------------- #
+# CLI
+# --------------------------------------------------------------------------- #
+async def render_files(src: pathlib.Path, args) -> list[pathlib.Path]:
     out_dir = pathlib.Path(args.out) if args.out else src.parent
     out_dir.mkdir(parents=True, exist_ok=True)
-    stem = src.stem
-    written: list[pathlib.Path] = []
 
-    is_md = src.suffix.lower() in (".md", ".markdown", ".txt")
+    if src.suffix.lower() in MD_SUFFIXES:
+        source, kind = src.read_text(encoding="utf-8"), "md"
+    else:
+        source, kind = src.resolve().as_uri(), "url"
+
+    want = tuple(f for f in ("pdf", "png", "svg") if getattr(args, f))
 
     async with async_playwright() as p:
         browser = await p.chromium.launch()
-        ctx = await browser.new_context(
-            viewport={"width": 1920, "height": 1200},
-            device_scale_factor=args.scale,
-            color_scheme="light",  # evita que el tema oscuro se cuele
-        )
-        page = await ctx.new_page()
-
-        # ---- 1. Cargar el mapa ------------------------------------------------
-        if is_md:
-            md = src.read_text(encoding="utf-8").replace("</script", "<\\/script")
-            html = MD_TEMPLATE.replace("__MARKDOWN__", md)
-            tmp = out_dir / f".{stem}.tmp.html"
-            tmp.write_text(html, encoding="utf-8")
-            await page.goto(tmp.resolve().as_uri(), wait_until="networkidle")
-            await page.wait_for_function("window.__mmReady === true", timeout=60000)
-            err = await page.evaluate("window.__mmError")
-            if err:
-                await browser.close()
-                tmp.unlink(missing_ok=True)
-                sys.exit(
-                    f"markmap no pudo procesar el Markdown: {err}\n"
-                    "Prueba el modo HTML (descarga el HTML del REPL y pasalo a este script)."
-                )
-            tmp.unlink(missing_ok=True)
-        else:
-            await page.goto(src.resolve().as_uri(), wait_until="networkidle")
-            await page.wait_for_selector("svg g", timeout=60000)
-            await page.wait_for_timeout(800)  # deja terminar la animacion inicial
-
-        # ---- 2. Limpiar + recortar + extraer ---------------------------------
-        data = await page.evaluate(JS_EXTRACT, args.pad)
-        w, h = data["w"], data["h"]
-        print(f"  contenido detectado: {w} x {h} px "
-              f"({w/96:.2f} x {h/96:.2f} pulgadas)")
-
-        wrapper = (
-            WRAPPER.replace("__W__", str(w))
-            .replace("__H__", str(h))
-            .replace("__STYLES__", data["styles"])
-            .replace(
-                "__LINKS__",
-                "\n".join(f'<link rel="stylesheet" href="{u}">' for u in data["links"]),
+        try:
+            out = await render_to_bytes(
+                browser, source, kind, pad=args.pad, scale=args.scale, want=want
             )
-            .replace("__SVG__", data["svg"])
-        )
+        finally:
+            await browser.close()
 
-        # ---- 3. SVG limpio ----------------------------------------------------
-        if args.svg:
-            svg_path = out_dir / f"{stem}.svg"
-            svg_path.write_text(
-                '<?xml version="1.0" encoding="UTF-8"?>\n' + data["svg"],
-                encoding="utf-8",
-            )
-            written.append(svg_path)
+    w, h = out["width"], out["height"]
+    print(f"  contenido detectado: {w} x {h} px ({w/96:.2f} x {h/96:.2f} pulgadas)")
 
-        # ---- 4. PDF vectorial de una sola pagina ------------------------------
-        page2 = await ctx.new_page()
-        await page2.set_content(wrapper, wait_until="networkidle")
-        await page2.wait_for_timeout(300)
-
-        if args.pdf:
-            pdf_path = out_dir / f"{stem}.pdf"
-            await page2.pdf(
-                path=str(pdf_path),
-                width=f"{w}px",
-                height=f"{h}px",
-                print_background=True,
-                margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
-                page_ranges="1",
-            )
-            written.append(pdf_path)
-
-        # ---- 5. PNG de alta resolucion ---------------------------------------
-        if args.png:
-            png_path = out_dir / f"{stem}.png"
-            await page2.set_viewport_size(
-                {"width": min(w, 16000), "height": min(h, 16000)}
-            )
-            await page2.screenshot(
-                path=str(png_path),
-                clip={"x": 0, "y": 0, "width": w, "height": h},
-                scale="device",
-            )
-            written.append(png_path)
-
-        await browser.close()
-
+    written: list[pathlib.Path] = []
+    for fmt in ("svg", "pdf", "png"):
+        if fmt in out:
+            path = out_dir / f"{src.stem}.{fmt}"
+            path.write_bytes(out[fmt])
+            written.append(path)
     return written
 
 
@@ -277,8 +323,10 @@ def main() -> None:
     )
     ap.add_argument("input", nargs="+", help="archivo(s) .md o .html")
     ap.add_argument("--out", default=None, help="carpeta de salida")
-    ap.add_argument("--pad", type=int, default=20, help="margen blanco en px (default 20)")
-    ap.add_argument("--scale", type=int, default=3, help="factor de resolucion del PNG (default 3)")
+    ap.add_argument("--pad", type=int, default=DEFAULT_PAD,
+                    help=f"margen blanco en px (default {DEFAULT_PAD})")
+    ap.add_argument("--scale", type=int, default=DEFAULT_SCALE,
+                    help=f"factor de resolucion del PNG (default {DEFAULT_SCALE})")
     ap.add_argument("--no-pdf", dest="pdf", action="store_false")
     ap.add_argument("--no-png", dest="png", action="store_false")
     ap.add_argument("--no-svg", dest="svg", action="store_false")
@@ -290,7 +338,13 @@ def main() -> None:
             print(f"!! No existe: {src}")
             continue
         print(f"-> {src.name}")
-        files = asyncio.run(render(src, args))
+        try:
+            files = asyncio.run(render_files(src, args))
+        except MarkmapError as exc:
+            print(f"!! {exc}")
+            if src.suffix.lower() in MD_SUFFIXES:
+                print("   Prueba el modo HTML (descarga el HTML del REPL).")
+            continue
         for f in files:
             print(f"   OK {f}")
 

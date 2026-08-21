@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>markmap → PDF</title>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markmap-lib@0.18.12/dist/browser/index.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.12/dist/browser/index.js"></script>
+
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --line:#e4e6eb; --line-strong:#d3d7de;
+    --text:#14161a; --muted:#697182; --accent:#2563eb; --accent-soft:#eff4ff;
+    --ok:#0f8a5f; --err:#c0392b; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1240px; margin:0 auto; padding:26px 22px 120px}
+
+  header{display:flex; align-items:baseline; gap:12px; margin-bottom:20px}
+  header h1{font-size:19px; font-weight:650; margin:0; letter-spacing:-.01em}
+  header p{margin:0; color:var(--muted); font-size:13.5px}
+
+  .grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:18px; align-items:start}
+  @media(max-width:960px){ .grid{grid-template-columns:1fr} }
+  .col{display:flex; flex-direction:column; gap:18px; min-width:0}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px}
+  .card h2{
+    display:flex; align-items:center; gap:9px; margin:0 0 14px;
+    font-size:14px; font-weight:620; letter-spacing:-.01em;
+  }
+  .card h2 em{font-style:normal; color:var(--muted); font-weight:450}
+  .num{
+    display:grid; place-items:center; width:20px; height:20px; flex:none;
+    background:var(--accent); color:#fff; border-radius:50%;
+    font-size:11.5px; font-weight:640;
+  }
+
+  /* pestañas */
+  .tabs{display:inline-flex; background:#eef0f4; border-radius:9px; padding:3px; margin-bottom:12px}
+  .tabs button{
+    border:0; background:none; padding:5px 13px; border-radius:7px; cursor:pointer;
+    font:inherit; font-size:13px; color:var(--muted);
+  }
+  .tabs button[aria-selected="true"]{background:#fff; color:var(--text); font-weight:560; box-shadow:0 1px 2px rgba(0,0,0,.07)}
+
+  textarea{
+    width:100%; min-height:330px; resize:vertical; padding:13px;
+    border:1px solid var(--line-strong); border-radius:10px; background:#fcfcfd;
+    font:13.5px/1.65 ui-monospace,SFMono-Regular,"Cascadia Code",Menlo,monospace;
+    color:var(--text); tab-size:2;
+  }
+  textarea:focus{outline:2px solid var(--accent-soft); border-color:var(--accent)}
+
+  /* zonas de arrastre */
+  .drop{
+    border:1.5px dashed var(--line-strong); border-radius:11px; background:#fbfbfc;
+    padding:26px 18px; text-align:center; cursor:pointer; transition:.13s;
+  }
+  .drop:hover{border-color:var(--accent); background:var(--accent-soft)}
+  .drop.over{border-color:var(--accent); background:var(--accent-soft); transform:scale(1.005)}
+  .drop b{display:block; font-weight:560; font-size:14px; margin-bottom:3px}
+  .drop span{color:var(--muted); font-size:12.5px}
+
+  .file{
+    display:flex; align-items:center; gap:11px; padding:11px 13px;
+    background:var(--accent-soft); border:1px solid #d5e2fb; border-radius:10px;
+  }
+  .file .ico{
+    width:30px; height:30px; flex:none; display:grid; place-items:center; border-radius:7px;
+    background:var(--accent); color:#fff; font-size:10px; font-weight:700; letter-spacing:.3px;
+  }
+  .file .meta{min-width:0; flex:1}
+  .file .nm{font-size:13.5px; font-weight:550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .file .sub{font-size:12px; color:var(--muted)}
+  .x{
+    border:0; background:none; color:var(--muted); cursor:pointer;
+    font-size:19px; line-height:1; padding:2px 6px; border-radius:6px;
+  }
+  .x:hover{background:#dbe6fb; color:var(--text)}
+
+  /* opciones */
+  .opts{margin-top:15px; display:grid; gap:11px}
+  .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .row > label:first-child{font-size:13px; color:var(--muted); min-width:112px}
+  select,input[type=number],input[type=text]{
+    font:inherit; font-size:13.5px; padding:6px 9px; border:1px solid var(--line-strong);
+    border-radius:8px; background:#fff; color:var(--text);
+  }
+  select:focus,input:focus{outline:2px solid var(--accent-soft); border-color:var(--accent)}
+  input[type=number]{width:74px}
+
+  details{margin-top:4px}
+  details summary{cursor:pointer; font-size:13px; color:var(--muted); list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"⌄  "; display:inline-block; transition:.15s}
+  details[open] summary::before{transform:rotate(180deg) translateY(3px)}
+  details .opts{padding-left:2px}
+
+  /* vista previa */
+  .preview-card{position:sticky; top:18px}
+  .pv{
+    border:1px solid var(--line); border-radius:11px; background:#fff;
+    overflow:hidden; height:min(64vh,560px);
+  }
+  #preview{width:100%; height:100%; display:block}
+  .pv-foot{margin-top:9px; font-size:12.5px; color:var(--muted); display:flex; justify-content:space-between; gap:10px}
+
+  /* barra de acciones */
+  .bar{
+    position:fixed; left:0; right:0; bottom:0; z-index:20;
+    background:rgba(255,255,255,.94); backdrop-filter:blur(9px);
+    border-top:1px solid var(--line); padding:13px 22px;
+  }
+  .bar-in{max-width:1240px; margin:0 auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  button.act{
+    font:inherit; font-size:13.5px; font-weight:520; padding:9px 15px; border-radius:9px;
+    border:1px solid var(--line-strong); background:#fff; color:var(--text); cursor:pointer; transition:.12s;
+  }
+  button.act:hover:not(:disabled){border-color:var(--accent); color:var(--accent)}
+  button.act.primary{background:var(--accent); border-color:var(--accent); color:#fff; padding:9px 19px; font-weight:580}
+  button.act.primary:hover:not(:disabled){background:#1d4ed8; color:#fff}
+  button.act:disabled{opacity:.5; cursor:not-allowed}
+  #status{font-size:13px; color:var(--muted); margin-left:auto}
+  #status.err{color:var(--err)}
+  #status.ok{color:var(--ok)}
+
+  .spin{
+    display:inline-block; width:12px; height:12px; margin-right:7px; vertical-align:-1px;
+    border:2px solid currentColor; border-right-color:transparent; border-radius:50%;
+    animation:sp .6s linear infinite;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>markmap → PDF</h1>
+    <p>Tu mapa mental, recortado y con fondo blanco — solo o pegado a tu tarea.</p>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+
+      <section class="card">
+        <h2><span class="num">1</span> Tu mapa</h2>
+
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="write" aria-selected="true">Escribir</button>
+          <button role="tab" data-tab="file" aria-selected="false">Subir archivo</button>
+        </div>
+
+        <div id="pane-write">
+          <textarea id="md" spellcheck="false" placeholder="# Título del mapa
+
+## Tema 1
+- Idea
+- Otra idea
+
+## Tema 2
+### Subtema
+- Detalle"></textarea>
+        </div>
+
+        <div id="pane-file" class="hidden">
+          <div class="drop" id="dropMap">
+            <b>Arrastra tu .md o el .html de markmap</b>
+            <span>o haz clic para elegirlo</span>
+          </div>
+          <div id="mapInfo" class="file hidden" style="margin-top:11px">
+            <div class="ico" id="mapIco">MD</div>
+            <div class="meta"><div class="nm" id="mapName"></div><div class="sub">se usará este archivo</div></div>
+            <button class="x" id="mapClear" title="Quitar">×</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="num">2</span> Unir con tu tarea <em>— opcional</em></h2>
+
+        <div class="drop" id="dropDoc">
+          <b>Arrastra aquí el PDF de tu tarea</b>
+          <span>o haz clic para elegirlo</span>
+        </div>
+
+        <div id="docBox" class="hidden">
+          <div class="file">
+            <div class="ico">PDF</div>
+            <div class="meta"><div class="nm" id="docName"></div><div class="sub" id="docSub"></div></div>
+            <button class="x" id="docClear" title="Quitar">×</button>
+          </div>
+
+          <div class="opts">
+            <div class="row">
+              <label for="position">Poner el mapa</label>
+              <select id="position">
+                <option value="end">al final del documento</option>
+                <option value="start">al inicio</option>
+                <option value="after">después de la página…</option>
+              </select>
+              <input type="number" id="afterPage" min="1" value="1" class="hidden">
+            </div>
+            <div class="row">
+              <label for="fit">Tamaño de la hoja</label>
+              <select id="fit">
+                <option value="doc">igual que tu documento</option>
+                <option value="landscape">horizontal, para que el mapa salga más grande</option>
+                <option value="exact">del tamaño exacto del mapa</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <details>
+          <summary>Ajustes</summary>
+          <div class="opts">
+            <div class="row">
+              <label for="pad">Margen del mapa</label>
+              <input type="number" id="pad" min="0" max="400" value="20"> <span class="sub" style="color:var(--muted);font-size:12.5px">px alrededor</span>
+            </div>
+            <div class="row">
+              <label for="margin">Margen de la hoja</label>
+              <input type="number" id="margin" min="0" max="200" value="36"> <span style="color:var(--muted);font-size:12.5px">pt (36 ≈ 1.3 cm)</span>
+            </div>
+            <div class="row">
+              <label for="scale">Calidad del PNG</label>
+              <select id="scale">
+                <option value="2">2× (192 dpi)</option>
+                <option value="3" selected>3× (288 dpi)</option>
+                <option value="4">4× (384 dpi)</option>
+              </select>
+            </div>
+            <div class="row">
+              <label for="name">Nombre del archivo</label>
+              <input type="text" id="name" placeholder="mapa" style="flex:1;min-width:150px">
+            </div>
+          </div>
+        </details>
+      </section>
+
+    </div>
+
+    <div class="col">
+      <section class="card preview-card">
+        <h2>Vista previa</h2>
+        <div class="pv"><svg id="preview"></svg></div>
+        <div class="pv-foot">
+          <span id="pvInfo">Escribe tu mapa para verlo aquí</span>
+          <span>así se exportará</span>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="bar">
+  <div class="bar-in">
+    <button class="act primary" id="btnMain">Descargar PDF</button>
+    <button class="act" data-fmt="pdf" id="btnPdf">Solo el mapa (PDF)</button>
+    <button class="act" data-fmt="png">PNG</button>
+    <button class="act" data-fmt="svg">SVG</button>
+    <span id="status"></span>
+  </div>
+</div>
+
+<input type="file" id="pickMap" accept=".md,.markdown,.txt,.html,.htm" class="hidden">
+<input type="file" id="pickDoc" accept="application/pdf,.pdf" class="hidden">
+
+<script>
+const $ = s => document.querySelector(s);
+const md = $('#md'), status = $('#status');
+let mapFile = null, docFile = null, docPages = 0, busy = false;
+
+/* ---------- vista previa en vivo ---------------------------------------- */
+const T = new markmap.Transformer();
+let mm = null;
+
+function preview(){
+  const text = md.value.trim();
+  if (mapFile || !text){
+    $('#pvInfo').textContent = mapFile
+      ? 'Se usará el archivo subido (la vista previa solo aplica al texto)'
+      : 'Escribe tu mapa para verlo aquí';
+    return;
+  }
+  try{
+    const res = T.transform(md.value);
+    let opts = {};
+    if (markmap.deriveOptions && res.frontmatter && res.frontmatter.markmap)
+      opts = markmap.deriveOptions(res.frontmatter.markmap);
+    opts.duration = 0;
+    if (opts.initialExpandLevel == null || opts.initialExpandLevel === 0)
+      opts.initialExpandLevel = -1;
+
+    if (!mm) mm = markmap.Markmap.create('#preview', opts, res.root);
+    else { mm.setOptions(opts); mm.setData(res.root); }
+    mm.fit();
+    const n = (md.value.match(/^\s*(#{1,6}\s|[-*+]\s)/gm) || []).length;
+    $('#pvInfo').textContent = n ? `${n} nodos` : 'Mapa vacío';
+  }catch(e){
+    $('#pvInfo').textContent = 'No se pudo interpretar el markdown';
+  }
+}
+let tmr; md.addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(preview, 250); });
+
+/* ---------- pestañas ----------------------------------------------------- */
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  $('#pane-write').classList.toggle('hidden', b.dataset.tab !== 'write');
+  $('#pane-file').classList.toggle('hidden', b.dataset.tab !== 'file');
+});
+function showTab(t){ document.querySelector(`.tabs button[data-tab="${t}"]`).click(); }
+
+/* ---------- archivos ----------------------------------------------------- */
+function setMap(f){
+  mapFile = f;
+  $('#mapName').textContent = f.name;
+  $('#mapIco').textContent = /\.html?$/i.test(f.name) ? 'HTML' : 'MD';
+  $('#mapInfo').classList.remove('hidden');
+  $('#dropMap').classList.add('hidden');
+  showTab('file');
+  if (/\.(md|markdown|txt)$/i.test(f.name))
+    f.text().then(t => { md.value = t; mapFile = null; clearMap(); showTab('write'); preview(); });
+  else preview();
+  refresh();
+}
+function clearMap(){
+  mapFile = null;
+  $('#mapInfo').classList.add('hidden');
+  $('#dropMap').classList.remove('hidden');
+  $('#pickMap').value = '';
+  preview(); refresh();
+}
+async function setDoc(f){
+  docFile = f;
+  $('#docName').textContent = f.name;
+  $('#docSub').textContent = 'leyendo…';
+  $('#docBox').classList.remove('hidden');
+  $('#dropDoc').classList.add('hidden');
+  refresh();
+  try{
+    const fd = new FormData(); fd.append('doc', f);
+    const r = await fetch('/api/pdfinfo', {method:'POST', body:fd});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || 'PDF ilegible');
+    docPages = j.pages;
+    $('#docSub').textContent = `${j.pages} página${j.pages===1?'':'s'} · ${Math.round(j.width/72*2.54)}×${Math.round(j.height/72*2.54)} cm`;
+    $('#afterPage').max = j.pages;
+  }catch(e){
+    $('#docSub').textContent = e.message;
+    docFile = null; refresh();
+  }
+}
+function clearDoc(){
+  docFile = null; docPages = 0;
+  $('#docBox').classList.add('hidden');
+  $('#dropDoc').classList.remove('hidden');
+  $('#pickDoc').value = '';
+  refresh();
+}
+$('#mapClear').onclick = clearMap;
+$('#docClear').onclick = clearDoc;
+$('#dropMap').onclick = () => $('#pickMap').click();
+$('#dropDoc').onclick = () => $('#pickDoc').click();
+$('#pickMap').onchange = e => e.target.files[0] && setMap(e.target.files[0]);
+$('#pickDoc').onchange = e => e.target.files[0] && setDoc(e.target.files[0]);
+
+$('#position').onchange = e => $('#afterPage').classList.toggle('hidden', e.target.value !== 'after');
+
+/* ---------- arrastrar y soltar (en cualquier parte) ---------------------- */
+function route(files){
+  for (const f of files){
+    if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') setDoc(f);
+    else if (/\.(md|markdown|txt|html?)$/i.test(f.name)) setMap(f);
+  }
+}
+['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => {
+  if (!e.dataTransfer?.types.includes('Files')) return;
+  e.preventDefault();
+  const z = e.target.closest?.('.drop'); if (z) z.classList.add('over');
+}));
+document.addEventListener('dragleave', e => e.target.closest?.('.drop')?.classList.remove('over'));
+document.addEventListener('drop', e => {
+  if (!e.dataTransfer?.files.length) return;
+  e.preventDefault();
+  document.querySelectorAll('.drop.over').forEach(z => z.classList.remove('over'));
+  route(e.dataTransfer.files);
+});
+
+/* ---------- descargas ---------------------------------------------------- */
+function mapName(){
+  const n = $('#name').value.trim();
+  if (n) return n;
+  const h = md.value.match(/^#\s+(.+)$/m);
+  if (h) return h[1].trim().slice(0,60);
+  if (mapFile) return mapFile.name.replace(/\.[^.]+$/,'');
+  return 'mapa';
+}
+function baseName(){
+  const n = $('#name').value.trim();
+  if (n) return n;
+  if (docFile) return docFile.name.replace(/\.pdf$/i,'');
+  return mapName();
+}
+function mapFields(fd){
+  if (mapFile) fd.append('mapfile', mapFile);
+  else fd.append('md', md.value);
+  fd.append('pad', $('#pad').value || 20);
+}
+function say(msg, cls=''){ status.className = cls; status.innerHTML = msg; }
+function lock(on){
+  busy = on;
+  document.querySelectorAll('.bar button').forEach(b => b.disabled = on);
+  if (!on) refresh();
+}
+async function save(r, fallback){
+  const cd = r.headers.get('Content-Disposition') || '';
+  const m = /filename\*=UTF-8''([^;]+)/.exec(cd);
+  const blob = await r.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = m ? decodeURIComponent(m[1]) : fallback;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+async function go(url, fd, fallback, label){
+  if (busy) return;
+  if (!mapFile && !md.value.trim()) return say('Escribe o sube un mapa primero.', 'err');
+  lock(true); say('<span class="spin"></span>' + label);
+  try{
+    const r = await fetch(url, {method:'POST', body:fd});
+    if (!r.ok){
+      let d = 'Algo salió mal';
+      try{ d = (await r.json()).detail || d; }catch(_){}
+      throw new Error(d);
+    }
+    await save(r, fallback);
+    say('Listo ✓', 'ok');
+    setTimeout(() => { if (!busy) say(''); }, 3500);
+  }catch(e){ say(e.message, 'err'); }
+  finally{ lock(false); }
+}
+function onlyMap(fmt){
+  const fd = new FormData(); mapFields(fd);
+  fd.append('fmt', fmt);
+  fd.append('scale', $('#scale').value);
+  fd.append('name', mapName());
+  go('/api/map', fd, `${mapName()}.${fmt}`, `Generando ${fmt.toUpperCase()}…`);
+}
+document.querySelectorAll('.bar [data-fmt]').forEach(b => b.onclick = () => onlyMap(b.dataset.fmt));
+
+$('#btnMain').onclick = () => {
+  if (!docFile) return onlyMap('pdf');
+  const fd = new FormData(); mapFields(fd);
+  fd.append('doc', docFile);
+  fd.append('position', $('#position').value);
+  fd.append('after_page', $('#afterPage').value || 1);
+  fd.append('fit', $('#fit').value);
+  fd.append('margin', $('#margin').value || 36);
+  fd.append('name', baseName());
+  go('/api/merge', fd, `${baseName()} con mapa.pdf`, 'Uniendo PDF…');
+};
+
+/* ---------- estado de la barra ------------------------------------------ */
+function refresh(){
+  const main = $('#btnMain');
+  main.textContent = docFile ? 'Descargar tarea + mapa (PDF)' : 'Descargar PDF';
+  $('#btnPdf').classList.toggle('hidden', !docFile);
+  $('#name').placeholder = baseName();
+}
+
+md.value = `# Ambiente de Trabajo
+
+## 1. Diseño de Arquitectura
+### Principios Clave
+- Modularidad
+- Alta cohesión y bajo acoplamiento
+### Niveles Estructurales
+- Subsistemas
+- Módulos
+- Componentes
+
+## 2. Proceso de Desarrollo
+- Cascada, Ágil, DevOps e Incremental`;
+refresh(); preview();
+</script>
+</body>
+</html>
