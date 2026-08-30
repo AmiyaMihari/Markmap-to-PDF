@@ -5,157 +5,388 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>markmap → PDF</title>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+
 <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/markmap-lib@0.18.12/dist/browser/index.iife.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.12/dist/browser/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 
 <style>
+/* ─────────────────────────────  tokens  ───────────────────────────── */
+:root{
+  --bg:#f2f2f5; --glow-a:rgba(0,113,227,.16); --glow-b:rgba(94,92,230,.14);
+  --surface:rgba(255,255,255,.74); --solid:#fff; --paper:#fff;
+  --text:#1d1d1f; --muted:#86868b; --faint:#a1a1a6;
+  --line:rgba(0,0,0,.09); --line-2:rgba(0,0,0,.16);
+  --accent:#0071e3; --accent-2:#5e5ce6; --accent-soft:rgba(0,113,227,.09);
+  --ok:#1a9c5b; --err:#e0393e;
+  --sh-s:0 1px 2px rgba(0,0,0,.04), 0 3px 10px rgba(0,0,0,.045);
+  --sh-m:0 2px 6px rgba(0,0,0,.05), 0 14px 36px rgba(0,0,0,.075);
+  --sh-l:0 10px 24px rgba(0,0,0,.09), 0 28px 68px rgba(0,0,0,.12);
+  --sh-accent:0 4px 14px rgba(0,113,227,.30), 0 12px 32px rgba(0,113,227,.20);
+  --r:22px; --r-s:13px;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --spring:cubic-bezier(.34,1.4,.64,1);
+}
+@media (prefers-color-scheme:dark){
   :root{
-    --bg:#f5f6f8; --card:#fff; --line:#e4e6eb; --line-strong:#d3d7de;
-    --text:#14161a; --muted:#697182; --accent:#2563eb; --accent-soft:#eff4ff;
-    --ok:#0f8a5f; --err:#c0392b; --radius:14px;
+    --bg:#0b0b0d; --glow-a:rgba(10,132,255,.20); --glow-b:rgba(94,92,230,.18);
+    --surface:rgba(28,28,30,.66); --solid:#1c1c1e; --paper:#fff;
+    --text:#f5f5f7; --muted:#98989d; --faint:#7c7c81;
+    --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.20);
+    --accent:#0a84ff; --accent-2:#6e6bf0; --accent-soft:rgba(10,132,255,.15);
+    --ok:#32d17c; --err:#ff6961;
+    --sh-s:0 1px 2px rgba(0,0,0,.4);
+    --sh-m:0 2px 8px rgba(0,0,0,.45), 0 16px 40px rgba(0,0,0,.4);
+    --sh-l:0 12px 30px rgba(0,0,0,.55), 0 30px 70px rgba(0,0,0,.5);
+    --sh-accent:0 4px 14px rgba(10,132,255,.35), 0 12px 32px rgba(10,132,255,.22);
   }
-  *{box-sizing:border-box}
-  body{
-    margin:0; background:var(--bg); color:var(--text);
-    font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:1240px; margin:0 auto; padding:26px 22px 120px}
+}
 
-  header{display:flex; align-items:baseline; gap:12px; margin-bottom:20px}
-  header h1{font-size:19px; font-weight:650; margin:0; letter-spacing:-.01em}
-  header p{margin:0; color:var(--muted); font-size:13.5px}
+/* ─────────────────────────────  base  ───────────────────────────── */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  font-size:15px; line-height:1.5; letter-spacing:-.005em;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  overflow-x:hidden;
+}
+/* halos de fondo, muy sutiles */
+.glow{position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none}
+.glow i{
+  position:absolute; display:block; border-radius:50%; filter:blur(90px);
+  animation:drift 26s var(--ease) infinite alternate;
+}
+.glow i:nth-child(1){width:46vw;height:46vw;background:var(--glow-a);top:-14vw;left:-8vw}
+.glow i:nth-child(2){width:40vw;height:40vw;background:var(--glow-b);top:36vh;right:-12vw;animation-delay:-13s}
+@keyframes drift{to{transform:translate3d(4vw,6vh,0) scale(1.14)}}
 
-  .grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:18px; align-items:start}
-  @media(max-width:960px){ .grid{grid-template-columns:1fr} }
-  .col{display:flex; flex-direction:column; gap:18px; min-width:0}
+.wrap{max-width:1280px; margin:0 auto; padding:44px 24px 132px}
 
-  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px}
-  .card h2{
-    display:flex; align-items:center; gap:9px; margin:0 0 14px;
-    font-size:14px; font-weight:620; letter-spacing:-.01em;
-  }
-  .card h2 em{font-style:normal; color:var(--muted); font-weight:450}
-  .num{
-    display:grid; place-items:center; width:20px; height:20px; flex:none;
-    background:var(--accent); color:#fff; border-radius:50%;
-    font-size:11.5px; font-weight:640;
-  }
+/* ─────────────────────────────  hero  ───────────────────────────── */
+.hero{margin-bottom:34px; animation:rise .8s var(--ease) both}
+.hero h1{
+  margin:0 0 7px; font-size:clamp(30px,4.4vw,44px); font-weight:700;
+  letter-spacing:-.035em; line-height:1.06;
+}
+.hero h1 span{
+  background:linear-gradient(115deg,var(--accent),var(--accent-2));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.hero p{margin:0; color:var(--muted); font-size:16.5px; letter-spacing:-.01em; max-width:52ch}
 
-  /* pestañas */
-  .tabs{display:inline-flex; background:#eef0f4; border-radius:9px; padding:3px; margin-bottom:12px}
-  .tabs button{
-    border:0; background:none; padding:5px 13px; border-radius:7px; cursor:pointer;
-    font:inherit; font-size:13px; color:var(--muted);
-  }
-  .tabs button[aria-selected="true"]{background:#fff; color:var(--text); font-weight:560; box-shadow:0 1px 2px rgba(0,0,0,.07)}
+@keyframes rise{from{opacity:0; transform:translateY(18px)} to{opacity:1; transform:none}}
 
-  textarea{
-    width:100%; min-height:330px; resize:vertical; padding:13px;
-    border:1px solid var(--line-strong); border-radius:10px; background:#fcfcfd;
-    font:13.5px/1.65 ui-monospace,SFMono-Regular,"Cascadia Code",Menlo,monospace;
-    color:var(--text); tab-size:2;
-  }
-  textarea:focus{outline:2px solid var(--accent-soft); border-color:var(--accent)}
+/* ─────────────────────────────  layout  ───────────────────────────── */
+.grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); gap:20px; align-items:start}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}}
+.col{display:flex; flex-direction:column; gap:20px; min-width:0}
 
-  /* zonas de arrastre */
-  .drop{
-    border:1.5px dashed var(--line-strong); border-radius:11px; background:#fbfbfc;
-    padding:26px 18px; text-align:center; cursor:pointer; transition:.13s;
-  }
-  .drop:hover{border-color:var(--accent); background:var(--accent-soft)}
-  .drop.over{border-color:var(--accent); background:var(--accent-soft); transform:scale(1.005)}
-  .drop b{display:block; font-weight:560; font-size:14px; margin-bottom:3px}
-  .drop span{color:var(--muted); font-size:12.5px}
+.card{
+  background:var(--surface); backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  border:1px solid var(--line); border-radius:var(--r); padding:24px;
+  box-shadow:var(--sh-s); transition:box-shadow .5s var(--ease), transform .5s var(--ease);
+  animation:rise .85s var(--ease) both; animation-delay:calc(var(--d,0) * .09s);
+}
+.card:hover{box-shadow:var(--sh-m)}
+.card h2{
+  display:flex; align-items:center; gap:10px; margin:0 0 18px;
+  font-size:16px; font-weight:600; letter-spacing:-.017em;
+}
+.card h2 em{font-style:normal; color:var(--faint); font-weight:450; font-size:14px}
+.num{
+  display:grid; place-items:center; width:23px; height:23px; flex:none;
+  background:linear-gradient(140deg,var(--accent),var(--accent-2)); color:#fff;
+  border-radius:50%; font-size:12px; font-weight:650; letter-spacing:-.02em;
+  box-shadow:0 2px 7px rgba(0,113,227,.32);
+}
 
-  .file{
-    display:flex; align-items:center; gap:11px; padding:11px 13px;
-    background:var(--accent-soft); border:1px solid #d5e2fb; border-radius:10px;
-  }
-  .file .ico{
-    width:30px; height:30px; flex:none; display:grid; place-items:center; border-radius:7px;
-    background:var(--accent); color:#fff; font-size:10px; font-weight:700; letter-spacing:.3px;
-  }
-  .file .meta{min-width:0; flex:1}
-  .file .nm{font-size:13.5px; font-weight:550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .file .sub{font-size:12px; color:var(--muted)}
-  .x{
-    border:0; background:none; color:var(--muted); cursor:pointer;
-    font-size:19px; line-height:1; padding:2px 6px; border-radius:6px;
-  }
-  .x:hover{background:#dbe6fb; color:var(--text)}
+/* ─────────────────────────────  segmented control  ───────────────── */
+.seg{
+  position:relative; display:inline-flex; padding:3px; margin-bottom:15px;
+  background:rgba(120,120,128,.12); border-radius:11px;
+}
+.seg button{
+  position:relative; z-index:1; border:0; background:none; cursor:pointer;
+  font:inherit; font-size:13.5px; font-weight:500; letter-spacing:-.01em;
+  padding:6px 16px; border-radius:8px; color:var(--muted);
+  transition:color .35s var(--ease);
+}
+.seg button[aria-selected="true"]{color:var(--text); font-weight:550}
+.seg-pill{
+  position:absolute; z-index:0; top:3px; left:3px; height:calc(100% - 6px);
+  background:var(--solid); border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.11);
+  transition:transform .45s var(--spring), width .45s var(--spring);
+}
 
-  /* opciones */
-  .opts{margin-top:15px; display:grid; gap:11px}
-  .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
-  .row > label:first-child{font-size:13px; color:var(--muted); min-width:112px}
-  select,input[type=number],input[type=text]{
-    font:inherit; font-size:13.5px; padding:6px 9px; border:1px solid var(--line-strong);
-    border-radius:8px; background:#fff; color:var(--text);
-  }
-  select:focus,input:focus{outline:2px solid var(--accent-soft); border-color:var(--accent)}
-  input[type=number]{width:74px}
+/* ─────────────────────────────  editor  ───────────────────────────── */
+textarea{
+  width:100%; min-height:320px; resize:vertical; padding:16px;
+  border:1px solid var(--line); border-radius:var(--r-s);
+  background:var(--solid); color:var(--text);
+  font-family:ui-monospace,"SF Mono","Cascadia Code",Menlo,monospace;
+  font-size:13.5px; line-height:1.72; letter-spacing:-.005em; tab-size:2;
+  transition:border-color .3s var(--ease), box-shadow .3s var(--ease);
+}
+textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft)}
+textarea::placeholder{color:var(--faint)}
 
-  details{margin-top:4px}
-  details summary{cursor:pointer; font-size:13px; color:var(--muted); list-style:none}
-  details summary::-webkit-details-marker{display:none}
-  details summary::before{content:"⌄  "; display:inline-block; transition:.15s}
-  details[open] summary::before{transform:rotate(180deg) translateY(3px)}
-  details .opts{padding-left:2px}
+/* ─────────────────────────────  drop zones  ───────────────────────── */
+.drop{
+  position:relative; border:1.5px dashed var(--line-2); border-radius:var(--r-s);
+  background:var(--solid); padding:32px 20px; text-align:center; cursor:pointer;
+  overflow:hidden;
+  transition:border-color .35s var(--ease), background .35s var(--ease),
+             transform .45s var(--spring), box-shadow .35s var(--ease);
+}
+.drop:hover{border-color:var(--accent); background:var(--accent-soft)}
+.drop.over{
+  border-color:var(--accent); border-style:solid; background:var(--accent-soft);
+  transform:scale(1.022); box-shadow:var(--sh-m);
+}
+.drop .ic{
+  width:38px; height:38px; margin:0 auto 11px; display:grid; place-items:center;
+  border-radius:11px; background:var(--accent-soft); color:var(--accent);
+  transition:transform .5s var(--spring);
+}
+.drop:hover .ic,.drop.over .ic{transform:translateY(-3px) scale(1.08)}
+.drop b{display:block; font-weight:550; font-size:14.5px; letter-spacing:-.012em; margin-bottom:3px}
+.drop span{color:var(--muted); font-size:13px}
 
-  /* vista previa */
-  .preview-card{position:sticky; top:18px}
-  .pv{
-    border:1px solid var(--line); border-radius:11px; background:#fff;
-    overflow:hidden; height:min(64vh,560px);
-  }
-  #preview{width:100%; height:100%; display:block}
-  .pv-foot{margin-top:9px; font-size:12.5px; color:var(--muted); display:flex; justify-content:space-between; gap:10px}
+/* ─────────────────────────────  file chip  ───────────────────────── */
+.file{
+  display:flex; align-items:center; gap:13px; padding:13px 14px;
+  background:var(--solid); border:1px solid var(--line); border-radius:var(--r-s);
+  box-shadow:var(--sh-s); animation:pop .55s var(--spring) both;
+}
+@keyframes pop{from{opacity:0; transform:scale(.94) translateY(8px)} to{opacity:1; transform:none}}
+.file .ic{
+  width:38px; height:38px; flex:none; display:grid; place-items:center; border-radius:10px;
+  background:linear-gradient(140deg,var(--accent),var(--accent-2)); color:#fff;
+  font-size:9.5px; font-weight:700; letter-spacing:.4px;
+  box-shadow:0 3px 9px rgba(0,113,227,.3);
+}
+.file .meta{min-width:0; flex:1}
+.file .nm{font-size:14px; font-weight:550; letter-spacing:-.012em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.file .sub{font-size:12.5px; color:var(--muted); margin-top:1px}
+.x{
+  width:27px; height:27px; flex:none; border:0; border-radius:50%; cursor:pointer;
+  background:rgba(120,120,128,.13); color:var(--muted); font-size:15px; line-height:1;
+  display:grid; place-items:center;
+  transition:background .3s var(--ease), color .3s var(--ease), transform .4s var(--spring);
+}
+.x:hover{background:rgba(120,120,128,.24); color:var(--text); transform:rotate(90deg)}
 
-  /* barra de acciones */
-  .bar{
-    position:fixed; left:0; right:0; bottom:0; z-index:20;
-    background:rgba(255,255,255,.94); backdrop-filter:blur(9px);
-    border-top:1px solid var(--line); padding:13px 22px;
-  }
-  .bar-in{max-width:1240px; margin:0 auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
-  button.act{
-    font:inherit; font-size:13.5px; font-weight:520; padding:9px 15px; border-radius:9px;
-    border:1px solid var(--line-strong); background:#fff; color:var(--text); cursor:pointer; transition:.12s;
-  }
-  button.act:hover:not(:disabled){border-color:var(--accent); color:var(--accent)}
-  button.act.primary{background:var(--accent); border-color:var(--accent); color:#fff; padding:9px 19px; font-weight:580}
-  button.act.primary:hover:not(:disabled){background:#1d4ed8; color:#fff}
-  button.act:disabled{opacity:.5; cursor:not-allowed}
-  #status{font-size:13px; color:var(--muted); margin-left:auto}
-  #status.err{color:var(--err)}
-  #status.ok{color:var(--ok)}
+/* ─────────────────────────────  tira de páginas  ─────────────────── */
+.order{margin-top:18px; animation:rise .6s var(--ease) both}
+.order-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px}
+.order-head .t{font-size:13px; font-weight:500; color:var(--muted); letter-spacing:-.01em}
+.order-head .v{
+  font-size:12.5px; font-weight:600; color:var(--accent); letter-spacing:-.01em;
+  padding:3px 10px; border-radius:20px; background:var(--accent-soft);
+  transition:transform .4s var(--spring);
+}
+.order-head .v.bump{transform:scale(1.09)}
 
-  .spin{
-    display:inline-block; width:12px; height:12px; margin-right:7px; vertical-align:-1px;
-    border:2px solid currentColor; border-right-color:transparent; border-radius:50%;
-    animation:sp .6s linear infinite;
-  }
-  @keyframes sp{to{transform:rotate(360deg)}}
-  .hidden{display:none !important}
+.strip{
+  display:flex; gap:11px; align-items:flex-start; overflow-x:auto; overflow-y:hidden;
+  padding:6px 2px 14px; scrollbar-width:thin; scroll-behavior:smooth;
+}
+.strip::-webkit-scrollbar{height:7px}
+.strip::-webkit-scrollbar-thumb{background:var(--line-2); border-radius:4px}
+
+.pcard{
+  flex:none; width:104px; border-radius:11px; background:var(--paper);
+  border:1px solid var(--line); overflow:hidden; box-shadow:var(--sh-s);
+  animation:pop .5s var(--spring) both;
+  transition:box-shadow .35s var(--ease), transform .35s var(--ease);
+}
+.pcard .thumb{height:132px; display:grid; place-items:center; background:var(--paper); overflow:hidden}
+.pcard .thumb canvas{display:block; max-width:100%; max-height:100%}
+.pcard .thumb svg.mini{display:block; width:100%; height:100%}
+.pcard .lbl{
+  font-size:11px; text-align:center; padding:5px 3px; color:var(--muted);
+  border-top:1px solid var(--line); background:var(--solid); font-weight:500;
+}
+.pcard .ph{width:100%;height:100%;display:grid;place-items:center;color:var(--faint);font-size:22px;font-weight:600}
+
+.pcard.map{
+  width:150px; cursor:grab; border:0; padding:2px;
+  background:linear-gradient(140deg,var(--accent),var(--accent-2));
+  box-shadow:var(--sh-accent);
+}
+.pcard.map .thumb{border-radius:9px 9px 0 0}
+.pcard.map .lbl{
+  background:none; border:0; color:#fff; font-weight:650; font-size:11.5px;
+  letter-spacing:.02em; display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.pcard.map{touch-action:none; user-select:none; -webkit-user-select:none}
+.pcard.map:hover{transform:translateY(-3px)}
+.pcard.map:active{cursor:grabbing}
+.pcard.map.dragging{
+  position:fixed; left:0; top:0; z-index:999; margin:0;
+  transition:none; cursor:grabbing; pointer-events:none;
+  box-shadow:0 20px 50px rgba(0,0,0,.3), var(--sh-accent);
+}
+.slot{
+  flex:none; border-radius:11px; background:var(--accent-soft);
+  border:1.5px dashed var(--accent); animation:none;
+}
+body.grabbing{user-select:none; cursor:grabbing}
+.pcard.map .grip{opacity:.75}
+.pcard.map.hint{animation:pop .5s var(--spring) both, wiggle 1.3s var(--ease) .7s 2}
+@keyframes wiggle{0%,100%{transform:none}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+.pcard.map .hnd{
+  text-align:center; font-size:10px; letter-spacing:.05em; text-transform:uppercase;
+  color:rgba(255,255,255,.7); padding:0 0 6px; font-weight:550;
+  transition:opacity .3s var(--ease);
+}
+.pcard.map:hover .hnd{opacity:.95}
+.pcard.map:focus-visible{outline:3px solid var(--accent); outline-offset:3px}
+
+/* ─────────────────────────────  opciones  ───────────────────────── */
+.opts{display:grid; gap:13px; margin-top:16px}
+.row{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.row > label:first-child{font-size:13.5px; color:var(--muted); min-width:126px; letter-spacing:-.01em}
+select,input[type=number],input[type=text]{
+  font:inherit; font-size:13.5px; padding:8px 12px; border:1px solid var(--line);
+  border-radius:10px; background:var(--solid); color:var(--text); cursor:pointer;
+  transition:border-color .3s var(--ease), box-shadow .3s var(--ease);
+}
+select:focus,input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft)}
+input[type=number]{width:82px; cursor:text}
+.unit{color:var(--faint); font-size:12.5px}
+
+details summary{
+  cursor:pointer; font-size:14px; font-weight:500; color:var(--muted);
+  list-style:none; display:flex; align-items:center; gap:8px; letter-spacing:-.01em;
+  transition:color .3s var(--ease);
+}
+details summary:hover{color:var(--text)}
+details summary::-webkit-details-marker{display:none}
+details summary .chev{transition:transform .4s var(--spring)}
+details[open] summary .chev{transform:rotate(90deg)}
+details[open] .opts{animation:rise .5s var(--ease) both}
+
+/* ─────────────────────────────  vista previa  ───────────────────── */
+.preview-card{position:sticky; top:24px}
+.tray{
+  position:relative; display:flex; align-items:center; justify-content:center;
+  height:min(60vh,520px); padding:16px; border-radius:15px;
+  background:rgba(120,120,128,.09); border:1px solid var(--line); overflow:hidden;
+}
+.paper{
+  position:relative; background:var(--paper); border-radius:5px; overflow:hidden;
+  width:100%; height:100%;
+  box-shadow:0 1px 3px rgba(0,0,0,.16), 0 10px 30px rgba(0,0,0,.12);
+  transition:box-shadow .4s var(--ease);
+}
+.pv-ctl{
+  position:absolute; right:12px; bottom:12px; display:flex; align-items:center; gap:2px;
+  padding:4px; border-radius:12px; background:rgba(255,255,255,.72);
+  backdrop-filter:blur(18px) saturate(180%); -webkit-backdrop-filter:blur(18px) saturate(180%);
+  border:1px solid rgba(0,0,0,.07); box-shadow:0 2px 10px rgba(0,0,0,.10);
+  opacity:.55; transition:opacity .3s var(--ease), transform .45s var(--spring);
+}
+.tray:hover .pv-ctl,.pv-ctl:focus-within{opacity:1; transform:translateY(-1px)}
+.pv-ctl button{
+  width:30px; height:30px; border:0; border-radius:9px; cursor:pointer; background:none;
+  display:grid; place-items:center; color:#1d1d1f;
+  transition:background .25s var(--ease), transform .35s var(--spring);
+}
+.pv-ctl button:hover{background:rgba(0,0,0,.07)}
+.pv-ctl button:active{transform:scale(.9)}
+.pv-ctl button svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2.1; stroke-linecap:round; stroke-linejoin:round}
+.pv-ctl .sep{width:1px; height:17px; background:rgba(0,0,0,.12); margin:0 3px}
+#preview{width:100%; height:100%; display:block}
+.pv-foot{
+  margin-top:12px; display:flex; justify-content:space-between; gap:12px;
+  font-size:12.5px; color:var(--faint); letter-spacing:-.005em;
+}
+#pvInfo{color:var(--muted); font-weight:500}
+
+/* ─────────────────────────────  barra de acciones  ──────────────── */
+.bar{
+  position:fixed; left:0; right:0; bottom:0; z-index:30;
+  background:var(--surface); backdrop-filter:blur(28px) saturate(180%);
+  -webkit-backdrop-filter:blur(28px) saturate(180%);
+  border-top:1px solid var(--line); padding:15px 24px;
+  animation:slideUp .8s var(--ease) .25s both;
+}
+@keyframes slideUp{from{opacity:0; transform:translateY(100%)} to{opacity:1; transform:none}}
+.bar-in{max-width:1280px; margin:0 auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+
+button.act{
+  font:inherit; font-size:13.5px; font-weight:520; letter-spacing:-.012em;
+  padding:10px 17px; border-radius:11px; cursor:pointer;
+  border:1px solid var(--line-2); background:var(--solid); color:var(--text);
+  transition:transform .4s var(--spring), box-shadow .35s var(--ease),
+             border-color .3s var(--ease), color .3s var(--ease), opacity .3s;
+}
+button.act:hover:not(:disabled){transform:translateY(-2px); box-shadow:var(--sh-m); border-color:var(--accent); color:var(--accent)}
+button.act:active:not(:disabled){transform:translateY(0) scale(.97)}
+button.act.primary{
+  background:linear-gradient(140deg,var(--accent),var(--accent-2));
+  border-color:transparent; color:#fff; font-weight:580; padding:10px 22px;
+  box-shadow:var(--sh-accent);
+}
+button.act.primary:hover:not(:disabled){color:#fff; box-shadow:0 6px 20px rgba(0,113,227,.42), 0 16px 44px rgba(0,113,227,.26)}
+button.act:disabled{opacity:.45; cursor:not-allowed}
+
+#status{
+  margin-left:auto; font-size:13.5px; color:var(--muted); font-weight:500;
+  display:flex; align-items:center; gap:8px; letter-spacing:-.01em;
+  animation:fadeIn .4s var(--ease) both;
+}
+#status.err{color:var(--err)}
+#status.ok{color:var(--ok)}
+@keyframes fadeIn{from{opacity:0; transform:translateX(8px)} to{opacity:1; transform:none}}
+
+.spin{
+  width:14px; height:14px; border:2px solid currentColor; border-right-color:transparent;
+  border-radius:50%; animation:sp .65s linear infinite;
+}
+@keyframes sp{to{transform:rotate(360deg)}}
+.tick{width:16px;height:16px}
+.tick path{
+  stroke:currentColor; stroke-width:2.4; fill:none; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:22; stroke-dashoffset:22; animation:draw .45s var(--ease) forwards;
+}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+.hidden{display:none !important}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important}
+  .glow i{animation:none}
+}
 </style>
 </head>
 <body>
 
+<div class="glow"><i></i><i></i></div>
+
 <div class="wrap">
-  <header>
-    <h1>markmap → PDF</h1>
-    <p>Tu mapa mental, recortado y con fondo blanco — solo o pegado a tu tarea.</p>
+  <header class="hero">
+    <h1>markmap <span>→</span> PDF</h1>
+    <p>Tu mapa mental, recortado y con fondo blanco. Solo, o dentro de tu tarea.</p>
   </header>
 
   <div class="grid">
     <div class="col">
 
-      <section class="card">
+      <section class="card" style="--d:1">
         <h2><span class="num">1</span> Tu mapa</h2>
 
-        <div class="tabs" role="tablist">
+        <div class="seg" role="tablist">
+          <span class="seg-pill" id="pill"></span>
           <button role="tab" data-tab="write" aria-selected="true">Escribir</button>
           <button role="tab" data-tab="file" aria-selected="false">Subir archivo</button>
         </div>
@@ -165,86 +396,96 @@
 
 ## Tema 1
 - Idea
-- Otra idea
-
-## Tema 2
-### Subtema
-- Detalle"></textarea>
+- Otra idea"></textarea>
         </div>
 
         <div id="pane-file" class="hidden">
           <div class="drop" id="dropMap">
+            <div class="ic">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+              </svg>
+            </div>
             <b>Arrastra tu .md o el .html de markmap</b>
             <span>o haz clic para elegirlo</span>
           </div>
-          <div id="mapInfo" class="file hidden" style="margin-top:11px">
-            <div class="ico" id="mapIco">MD</div>
-            <div class="meta"><div class="nm" id="mapName"></div><div class="sub">se usará este archivo</div></div>
-            <button class="x" id="mapClear" title="Quitar">×</button>
+          <div id="mapInfo" class="hidden" style="margin-top:12px">
+            <div class="file">
+              <div class="ic" id="mapIco">MD</div>
+              <div class="meta"><div class="nm" id="mapName"></div><div class="sub">se usará este archivo</div></div>
+              <button class="x" id="mapClear" title="Quitar">×</button>
+            </div>
           </div>
         </div>
       </section>
 
-      <section class="card">
+      <section class="card" style="--d:2">
         <h2><span class="num">2</span> Unir con tu tarea <em>— opcional</em></h2>
 
         <div class="drop" id="dropDoc">
+          <div class="ic">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v13"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/>
+            </svg>
+          </div>
           <b>Arrastra aquí el PDF de tu tarea</b>
           <span>o haz clic para elegirlo</span>
         </div>
 
         <div id="docBox" class="hidden">
           <div class="file">
-            <div class="ico">PDF</div>
+            <div class="ic">PDF</div>
             <div class="meta"><div class="nm" id="docName"></div><div class="sub" id="docSub"></div></div>
             <button class="x" id="docClear" title="Quitar">×</button>
           </div>
 
-          <div class="opts">
-            <div class="row">
-              <label for="position">Poner el mapa</label>
-              <select id="position">
-                <option value="end">al final del documento</option>
-                <option value="start">al inicio</option>
-                <option value="after">después de la página…</option>
-              </select>
-              <input type="number" id="afterPage" min="1" value="1" class="hidden">
+          <div class="order">
+            <div class="order-head">
+              <span class="t">Arrastra el mapa para colocarlo donde quieras</span>
+              <span class="v" id="orderLbl">al final</span>
             </div>
+            <div class="strip" id="strip"></div>
+          </div>
+
+          <div class="opts">
             <div class="row">
               <label for="fit">Tamaño de la hoja</label>
               <select id="fit">
+                <option value="exact" selected>del tamaño del mapa</option>
                 <option value="doc">igual que tu documento</option>
-                <option value="landscape">horizontal, para que el mapa salga más grande</option>
-                <option value="exact">del tamaño exacto del mapa</option>
+                <option value="landscape">horizontal, para que salga más grande</option>
               </select>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="card">
+      <section class="card" style="--d:3">
         <details>
-          <summary>Ajustes</summary>
+          <summary>
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            Ajustes
+          </summary>
           <div class="opts">
             <div class="row">
               <label for="pad">Margen del mapa</label>
-              <input type="number" id="pad" min="0" max="400" value="20"> <span class="sub" style="color:var(--muted);font-size:12.5px">px alrededor</span>
+              <input type="number" id="pad" min="0" max="400" value="20"><span class="unit">px alrededor</span>
             </div>
             <div class="row">
               <label for="margin">Margen de la hoja</label>
-              <input type="number" id="margin" min="0" max="200" value="36"> <span style="color:var(--muted);font-size:12.5px">pt (36 ≈ 1.3 cm)</span>
+              <input type="number" id="margin" min="0" max="200" value="36"><span class="unit">pt · solo si la hoja no es del tamaño del mapa</span>
             </div>
             <div class="row">
               <label for="scale">Calidad del PNG</label>
               <select id="scale">
-                <option value="2">2× (192 dpi)</option>
-                <option value="3" selected>3× (288 dpi)</option>
-                <option value="4">4× (384 dpi)</option>
+                <option value="2">2× · 192 dpi</option>
+                <option value="3" selected>3× · 288 dpi</option>
+                <option value="4">4× · 384 dpi</option>
               </select>
             </div>
             <div class="row">
               <label for="name">Nombre del archivo</label>
-              <input type="text" id="name" placeholder="mapa" style="flex:1;min-width:150px">
+              <input type="text" id="name" placeholder="mapa" style="flex:1;min-width:160px">
             </div>
           </div>
         </details>
@@ -253,13 +494,24 @@
     </div>
 
     <div class="col">
-      <section class="card preview-card">
+      <section class="card preview-card" style="--d:2">
         <h2>Vista previa</h2>
-        <div class="pv"><svg id="preview"></svg></div>
-        <div class="pv-foot">
-          <span id="pvInfo">Escribe tu mapa para verlo aquí</span>
-          <span>así se exportará</span>
+        <div class="tray" id="tray">
+          <div class="paper" id="paper"><svg id="preview"></svg></div>
+          <div class="pv-ctl">
+            <button id="zOut" title="Alejar" aria-label="Alejar">
+              <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+            </button>
+            <button id="zIn" title="Acercar" aria-label="Acercar">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <span class="sep"></span>
+            <button id="zFit" title="Centrar el mapa" aria-label="Centrar el mapa">
+              <svg viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg>
+            </button>
+          </div>
         </div>
+        <div class="pv-foot"><span id="pvInfo">Escribe tu mapa</span><span id="pvSize"></span></div>
       </section>
     </div>
   </div>
@@ -268,7 +520,7 @@
 <div class="bar">
   <div class="bar-in">
     <button class="act primary" id="btnMain">Descargar PDF</button>
-    <button class="act" data-fmt="pdf" id="btnPdf">Solo el mapa (PDF)</button>
+    <button class="act hidden" data-fmt="pdf" id="btnPdf">Solo el mapa · PDF</button>
     <button class="act" data-fmt="png">PNG</button>
     <button class="act" data-fmt="svg">SVG</button>
     <span id="status"></span>
@@ -280,61 +532,130 @@
 
 <script>
 const $ = s => document.querySelector(s);
-const md = $('#md'), status = $('#status');
-let mapFile = null, docFile = null, docPages = 0, busy = false;
+const md = $('#md'), strip = $('#strip'), statusEl = $('#status');
+let mapFile = null, docFile = null, docPages = 0, busy = false, mapCard = null;
 
-/* ---------- vista previa en vivo ---------------------------------------- */
+if (window.pdfjsLib)
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+/* ══════════════ vista previa en vivo ══════════════ */
 const T = new markmap.Transformer();
-let mm = null;
+let mm = null, mini = null;
 
-function preview(){
-  const text = md.value.trim();
-  if (mapFile || !text){
-    $('#pvInfo').textContent = mapFile
-      ? 'Se usará el archivo subido (la vista previa solo aplica al texto)'
-      : 'Escribe tu mapa para verlo aquí';
+function mapOpts(res){
+  let o = {};
+  if (markmap.deriveOptions && res.frontmatter && res.frontmatter.markmap)
+    o = markmap.deriveOptions(res.frontmatter.markmap);
+  o.duration = 0;
+  if (o.initialExpandLevel == null || o.initialExpandLevel === 0) o.initialExpandLevel = -1;
+  return o;
+}
+async function preview(){
+  if (mapFile || !md.value.trim()){
+    $('#pvInfo').textContent = mapFile ? 'Se usará el archivo subido' : 'Escribe tu mapa';
+    $('#pvSize').textContent = '';
     return;
   }
   try{
-    const res = T.transform(md.value);
-    let opts = {};
-    if (markmap.deriveOptions && res.frontmatter && res.frontmatter.markmap)
-      opts = markmap.deriveOptions(res.frontmatter.markmap);
-    opts.duration = 0;
-    if (opts.initialExpandLevel == null || opts.initialExpandLevel === 0)
-      opts.initialExpandLevel = -1;
-
-    if (!mm) mm = markmap.Markmap.create('#preview', opts, res.root);
-    else { mm.setOptions(opts); mm.setData(res.root); }
-    mm.fit();
+    const res = T.transform(md.value), o = mapOpts(res);
+    if (!mm) mm = markmap.Markmap.create('#preview', o, res.root);
+    else mm.setOptions(o);
+    // setData y fit son ASINCRONOS: hay que esperarlos o se mide el mapa anterior.
+    await mm.setData(res.root);
+    await mm.fit();
     const n = (md.value.match(/^\s*(#{1,6}\s|[-*+]\s)/gm) || []).length;
     $('#pvInfo').textContent = n ? `${n} nodos` : 'Mapa vacío';
-  }catch(e){
-    $('#pvInfo').textContent = 'No se pudo interpretar el markdown';
-  }
+    await fitPaper();
+    renderMini();
+  }catch(e){ $('#pvInfo').textContent = 'Markdown no válido'; }
 }
-let tmr; md.addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(preview, 250); });
+function renderMini(){
+  if (!mapCard) return;
+  const svg = mapCard.querySelector('svg.mini');
+  if (!svg || mapFile) return;
+  try{
+    const res = T.transform(md.value);
+    const o = Object.assign(mapOpts(res), {fitRatio: 0.92});
+    if (!mini || mini.svg.node() !== svg){ svg.innerHTML = ''; mini = markmap.Markmap.create(svg, o, res.root); }
+    else mini.setOptions(o);
+    mini.setData(res.root)
+      // fit() necesita el tamano final: la tarjeta entra con una animacion de escala.
+      .then(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))))
+      .then(() => mini && mini.fit())
+      .catch(() => {});
+  }catch(e){ console.error('mini', e); }
+}
+let tmr;
+md.addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(preview, 250); });
 
-/* ---------- pestañas ----------------------------------------------------- */
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+/* La hoja de la vista previa toma la PROPORCION EXACTA del PDF que saldra.
+   getBBox() sobre el <g> devuelve la caja del contenido sin el zoom aplicado,
+   que es justo lo que mide el servidor al exportar. */
+function pageSize(){
+  const g = document.querySelector('#preview > g');
+  if (!g) return null;
+  try{
+    const b = g.getBBox();
+    if (!b.width || !b.height) return null;
+    const pad = Math.max(0, +($('#pad').value || 20));
+    return {w: Math.ceil(b.width + pad*2), h: Math.ceil(b.height + pad*2)};
+  }catch(e){ return null; }
+}
+async function fitPaper(){
+  const sz = pageSize(); if (!sz) return;
+  const tray = $('#tray'), paper = $('#paper');
+  const maxW = tray.clientWidth - 32, maxH = tray.clientHeight - 32;
+  if (maxW <= 0 || maxH <= 0) return;
+  const k = Math.min(maxW / sz.w, maxH / sz.h);
+  paper.style.width  = Math.max(28, Math.round(sz.w * k)) + 'px';
+  paper.style.height = Math.max(28, Math.round(sz.h * k)) + 'px';
+  $('#pvSize').textContent =
+    `hoja ${sz.w} × ${sz.h} px · ${(sz.w/96).toFixed(1)}″ × ${(sz.h/96).toFixed(1)}″`;
+  await new Promise(r => requestAnimationFrame(r));
+  if (mm) await mm.fit();
+}
+addEventListener('resize', fitPaper);
+$('#pad').addEventListener('input', fitPaper);
+// Red de seguridad: recentrar siempre que la hoja cambie de tamano.
+if (window.ResizeObserver)
+  new ResizeObserver(() => { if (mm) mm.fit(); }).observe($('#paper'));
+
+/* controles de la vista previa: acercar, alejar y recentrar */
+function zoom(f){ if (mm && mm.rescale) mm.rescale(f); }
+$('#zIn').onclick  = () => zoom(1.25);
+$('#zOut').onclick = () => zoom(0.8);
+$('#zFit').onclick = () => fitPaper();
+$('#preview').addEventListener('dblclick', () => fitPaper());
+
+/* ══════════════ segmented control ══════════════ */
+const segBtns = [...document.querySelectorAll('.seg button')];
+function movePill(){
+  const b = segBtns.find(x => x.getAttribute('aria-selected') === 'true');
+  $('#pill').style.width = b.offsetWidth + 'px';
+  $('#pill').style.transform = `translateX(${b.offsetLeft - 3}px)`;
+}
+segBtns.forEach(b => b.onclick = () => {
+  segBtns.forEach(x => x.setAttribute('aria-selected', x === b));
   $('#pane-write').classList.toggle('hidden', b.dataset.tab !== 'write');
   $('#pane-file').classList.toggle('hidden', b.dataset.tab !== 'file');
+  movePill();
 });
-function showTab(t){ document.querySelector(`.tabs button[data-tab="${t}"]`).click(); }
+addEventListener('resize', movePill);
 
-/* ---------- archivos ----------------------------------------------------- */
+/* ══════════════ archivos ══════════════ */
 function setMap(f){
+  if (/\.(md|markdown|txt)$/i.test(f.name)){
+    f.text().then(t => { md.value = t; segBtns[0].click(); preview(); refresh(); });
+    return;
+  }
   mapFile = f;
   $('#mapName').textContent = f.name;
-  $('#mapIco').textContent = /\.html?$/i.test(f.name) ? 'HTML' : 'MD';
+  $('#mapIco').textContent = 'HTML';
   $('#mapInfo').classList.remove('hidden');
   $('#dropMap').classList.add('hidden');
-  showTab('file');
-  if (/\.(md|markdown|txt)$/i.test(f.name))
-    f.text().then(t => { md.value = t; mapFile = null; clearMap(); showTab('write'); preview(); });
-  else preview();
-  refresh();
+  segBtns[1].click();
+  preview(); refresh();
 }
 function clearMap(){
   mapFile = null;
@@ -351,20 +672,32 @@ async function setDoc(f){
   $('#dropDoc').classList.add('hidden');
   refresh();
   try{
-    const fd = new FormData(); fd.append('doc', f);
-    const r = await fetch('/api/pdfinfo', {method:'POST', body:fd});
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.detail || 'PDF ilegible');
-    docPages = j.pages;
-    $('#docSub').textContent = `${j.pages} página${j.pages===1?'':'s'} · ${Math.round(j.width/72*2.54)}×${Math.round(j.height/72*2.54)} cm`;
-    $('#afterPage').max = j.pages;
+    let pages, w, h;
+    if (window.pdfjsLib){
+      const pdf = await pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
+      pages = pdf.numPages;
+      const v = (await pdf.getPage(1)).getViewport({scale:1});
+      [w, h] = [v.width, v.height];
+      docPages = pages; buildStrip(pages);
+      paintThumbs(pdf);
+    } else {
+      const fd = new FormData(); fd.append('doc', f);
+      const r = await fetch('/api/pdfinfo', {method:'POST', body:fd});
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.detail || 'PDF ilegible');
+      ({pages, width:w, height:h} = j);
+      docPages = pages; buildStrip(pages);
+    }
+    $('#docSub').textContent =
+      `${pages} página${pages===1?'':'s'} · ${Math.round(w/72*2.54)}×${Math.round(h/72*2.54)} cm`;
   }catch(e){
-    $('#docSub').textContent = e.message;
+    $('#docSub').textContent = e.message || 'No pude leer ese PDF';
     docFile = null; refresh();
   }
 }
 function clearDoc(){
-  docFile = null; docPages = 0;
+  docFile = null; docPages = 0; mapCard = null; mini = null; ph = null; drag = null;
+  strip.innerHTML = '';
   $('#docBox').classList.add('hidden');
   $('#dropDoc').classList.remove('hidden');
   $('#pickDoc').value = '';
@@ -377,9 +710,150 @@ $('#dropDoc').onclick = () => $('#pickDoc').click();
 $('#pickMap').onchange = e => e.target.files[0] && setMap(e.target.files[0]);
 $('#pickDoc').onchange = e => e.target.files[0] && setDoc(e.target.files[0]);
 
-$('#position').onchange = e => $('#afterPage').classList.toggle('hidden', e.target.value !== 'after');
+/* ══════════════ tira de páginas ordenable ══════════════ */
+function buildStrip(pages){
+  strip.innerHTML = '';
+  for (let i = 1; i <= pages; i++){
+    const c = document.createElement('div');
+    c.className = 'pcard';
+    c.style.animationDelay = (i * .035) + 's';
+    c.innerHTML = `<div class="thumb"><div class="ph">${i}</div></div><div class="lbl">Página ${i}</div>`;
+    strip.appendChild(c);
+  }
+  mapCard = document.createElement('div');
+  mapCard.className = 'pcard map hint';
+  mapCard.style.animationDelay = (pages * .035 + .05) + 's';
+  mapCard.innerHTML =
+    `<div class="thumb"><svg class="mini"></svg></div>
+     <div class="lbl">
+       <svg class="grip" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>
+       TU MAPA
+     </div>
+     <div class="hnd">arrástrame</div>`;
+  mapCard.tabIndex = 0;
+  strip.appendChild(mapCard);
 
-/* ---------- arrastrar y soltar (en cualquier parte) ---------------------- */
+  // teclado: flechas izquierda/derecha cuando la tarjeta tiene el foco
+  mapCard.addEventListener('keydown', e => {
+    const d = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const sib = d < 0 ? mapCard.previousElementSibling : mapCard.nextElementSibling;
+    if (!sib) return;
+    flip(() => d < 0 ? strip.insertBefore(mapCard, sib) : strip.insertBefore(sib, mapCard));
+    updateOrder();
+  });
+  wireDrag();
+  renderMini();
+  updateOrder();
+}
+
+async function paintThumbs(pdf){
+  const cards = [...strip.querySelectorAll('.pcard:not(.map)')];
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  for (let i = 1; i <= Math.min(pdf.numPages, 40); i++){
+    try{
+      const page = await pdf.getPage(i);
+      const base = page.getViewport({scale:1});
+      const vp = page.getViewport({scale: (132 / base.height) * dpr});
+      const cv = document.createElement('canvas');
+      cv.width = vp.width; cv.height = vp.height;
+      cv.style.height = '132px'; cv.style.width = (vp.width / dpr) + 'px';
+      await page.render({canvasContext: cv.getContext('2d'), viewport: vp}).promise;
+      const t = cards[i-1]?.querySelector('.thumb');
+      if (t){ t.innerHTML = ''; t.appendChild(cv); }
+    }catch(e){ break; }
+  }
+}
+
+/* FLIP: mueve las tarjetas con una animación suave */
+function flip(mutate){
+  const els = [...strip.children];
+  const before = new Map(els.map(el => [el, el.getBoundingClientRect()]));
+  mutate();
+  for (const el of strip.children){
+    const b = before.get(el); if (!b) continue;
+    const a = el.getBoundingClientRect();
+    const dx = b.left - a.left, dy = b.top - a.top;
+    if (!dx && !dy) continue;
+    el.animate([{transform:`translate(${dx}px,${dy}px)`}, {transform:'none'}],
+               {duration:340, easing:'cubic-bezier(.16,1,.3,1)'});
+  }
+}
+let ph = null, drag = null;
+function wireDrag(){
+  mapCard.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    mapCard.classList.remove('hint');
+
+    const r = mapCard.getBoundingClientRect();
+    drag = {dx: e.clientX - r.left, dy: e.clientY - r.top};
+
+    ph = document.createElement('div');
+    ph.className = 'slot';
+    ph.style.width = r.width + 'px';
+    ph.style.height = r.height + 'px';
+    strip.insertBefore(ph, mapCard);
+
+    mapCard.style.width = r.width + 'px';
+    mapCard.classList.add('dragging');
+    document.body.appendChild(mapCard);      // fuera del flujo de la tira
+    document.body.classList.add('grabbing');
+    follow(e.clientX, e.clientY);
+
+    addEventListener('pointermove', onMove);
+    addEventListener('pointerup', onUp, {once:true});
+    addEventListener('pointercancel', onUp, {once:true});
+  });
+}
+function follow(x, y){
+  mapCard.style.transform =
+    `translate(${x - drag.dx}px, ${y - drag.dy}px) scale(1.05) rotate(-1.6deg)`;
+}
+function onMove(e){
+  if (!drag) return;
+  follow(e.clientX, e.clientY);
+
+  const r = strip.getBoundingClientRect();          // auto-scroll en los bordes
+  if (e.clientX < r.left + 56) strip.scrollLeft -= 12;
+  else if (e.clientX > r.right - 56) strip.scrollLeft += 12;
+
+  const after = [...strip.querySelectorAll('.pcard')]
+    .find(el => { const b = el.getBoundingClientRect(); return e.clientX < b.left + b.width/2; }) || null;
+  if (after === ph.nextElementSibling || after === ph) return;
+  flip(() => after ? strip.insertBefore(ph, after) : strip.appendChild(ph));
+  updateOrder();
+}
+function onUp(){
+  if (!drag) return;
+  removeEventListener('pointermove', onMove);
+  const from = mapCard.getBoundingClientRect();
+
+  mapCard.classList.remove('dragging');
+  mapCard.style.transform = '';
+  mapCard.style.width = '';
+  strip.insertBefore(mapCard, ph);
+  ph.remove(); ph = null; drag = null;
+  document.body.classList.remove('grabbing');
+
+  const to = mapCard.getBoundingClientRect();       // aterrizaje suave
+  mapCard.animate(
+    [{transform:`translate(${from.left - to.left}px, ${from.top - to.top}px) scale(1.05)`},
+     {transform:'none'}],
+    {duration:380, easing:'cubic-bezier(.16,1,.3,1)'});
+  updateOrder();
+}
+function mapIndex(){ return [...strip.children].indexOf(ph || mapCard); }
+function updateOrder(){
+  const i = mapIndex(), lbl = $('#orderLbl');
+  lbl.textContent = i === 0 ? 'al inicio'
+    : i === docPages ? 'al final'
+    : `como página ${i + 1} de ${docPages + 1}`;
+  lbl.classList.add('bump'); setTimeout(() => lbl.classList.remove('bump'), 220);
+}
+
+/* ══════════════ soltar archivos en cualquier parte ══════════════ */
 function route(files){
   for (const f of files){
     if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') setDoc(f);
@@ -389,7 +863,7 @@ function route(files){
 ['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => {
   if (!e.dataTransfer?.types.includes('Files')) return;
   e.preventDefault();
-  const z = e.target.closest?.('.drop'); if (z) z.classList.add('over');
+  e.target.closest?.('.drop')?.classList.add('over');
 }));
 document.addEventListener('dragleave', e => e.target.closest?.('.drop')?.classList.remove('over'));
 document.addEventListener('drop', e => {
@@ -399,86 +873,67 @@ document.addEventListener('drop', e => {
   route(e.dataTransfer.files);
 });
 
-/* ---------- descargas ---------------------------------------------------- */
+/* ══════════════ descargas ══════════════ */
 function mapName(){
-  const n = $('#name').value.trim();
-  if (n) return n;
-  const h = md.value.match(/^#\s+(.+)$/m);
-  if (h) return h[1].trim().slice(0,60);
+  const n = $('#name').value.trim(); if (n) return n;
+  const h = md.value.match(/^#\s+(.+)$/m); if (h && !mapFile) return h[1].trim().slice(0,60);
   if (mapFile) return mapFile.name.replace(/\.[^.]+$/,'');
   return 'mapa';
 }
 function baseName(){
-  const n = $('#name').value.trim();
-  if (n) return n;
-  if (docFile) return docFile.name.replace(/\.pdf$/i,'');
-  return mapName();
+  const n = $('#name').value.trim(); if (n) return n;
+  return docFile ? docFile.name.replace(/\.pdf$/i,'') : mapName();
 }
 function mapFields(fd){
-  if (mapFile) fd.append('mapfile', mapFile);
-  else fd.append('md', md.value);
+  if (mapFile) fd.append('mapfile', mapFile); else fd.append('md', md.value);
   fd.append('pad', $('#pad').value || 20);
 }
-function say(msg, cls=''){ status.className = cls; status.innerHTML = msg; }
-function lock(on){
-  busy = on;
-  document.querySelectorAll('.bar button').forEach(b => b.disabled = on);
-  if (!on) refresh();
-}
+const TICK = '<svg class="tick" viewBox="0 0 24 24"><path d="m4 12.5 5.2 5.2L20 6.8"/></svg>';
+function say(html, cls=''){ statusEl.className = cls; statusEl.innerHTML = html; }
+function lock(on){ busy = on; document.querySelectorAll('.bar button').forEach(b => b.disabled = on); if (!on) refresh(); }
 async function save(r, fallback){
-  const cd = r.headers.get('Content-Disposition') || '';
-  const m = /filename\*=UTF-8''([^;]+)/.exec(cd);
-  const blob = await r.blob();
+  const m = /filename\*=UTF-8''([^;]+)/.exec(r.headers.get('Content-Disposition') || '');
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  a.href = URL.createObjectURL(await r.blob());
   a.download = m ? decodeURIComponent(m[1]) : fallback;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
 }
 async function go(url, fd, fallback, label){
   if (busy) return;
-  if (!mapFile && !md.value.trim()) return say('Escribe o sube un mapa primero.', 'err');
-  lock(true); say('<span class="spin"></span>' + label);
+  if (!mapFile && !md.value.trim()) return say('Escribe o sube un mapa primero', 'err');
+  lock(true); say(`<span class="spin"></span>${label}`);
   try{
     const r = await fetch(url, {method:'POST', body:fd});
-    if (!r.ok){
-      let d = 'Algo salió mal';
-      try{ d = (await r.json()).detail || d; }catch(_){}
-      throw new Error(d);
-    }
+    if (!r.ok){ let d='Algo salió mal'; try{ d = (await r.json()).detail || d; }catch(_){} throw new Error(d); }
     await save(r, fallback);
-    say('Listo ✓', 'ok');
+    say(TICK + 'Listo', 'ok');
     setTimeout(() => { if (!busy) say(''); }, 3500);
   }catch(e){ say(e.message, 'err'); }
   finally{ lock(false); }
 }
 function onlyMap(fmt){
   const fd = new FormData(); mapFields(fd);
-  fd.append('fmt', fmt);
-  fd.append('scale', $('#scale').value);
-  fd.append('name', mapName());
+  fd.append('fmt', fmt); fd.append('scale', $('#scale').value); fd.append('name', mapName());
   go('/api/map', fd, `${mapName()}.${fmt}`, `Generando ${fmt.toUpperCase()}…`);
 }
 document.querySelectorAll('.bar [data-fmt]').forEach(b => b.onclick = () => onlyMap(b.dataset.fmt));
-
 $('#btnMain').onclick = () => {
   if (!docFile) return onlyMap('pdf');
   const fd = new FormData(); mapFields(fd);
   fd.append('doc', docFile);
-  fd.append('position', $('#position').value);
-  fd.append('after_page', $('#afterPage').value || 1);
+  fd.append('position', 'after');
+  fd.append('after_page', mapIndex());
   fd.append('fit', $('#fit').value);
   fd.append('margin', $('#margin').value || 36);
   fd.append('name', baseName());
   go('/api/merge', fd, `${baseName()} con mapa.pdf`, 'Uniendo PDF…');
 };
 
-/* ---------- estado de la barra ------------------------------------------ */
 function refresh(){
-  const main = $('#btnMain');
-  main.textContent = docFile ? 'Descargar tarea + mapa (PDF)' : 'Descargar PDF';
+  $('#btnMain').textContent = docFile ? 'Descargar tarea + mapa' : 'Descargar PDF';
   $('#btnPdf').classList.toggle('hidden', !docFile);
-  $('#name').placeholder = baseName();
+  $('#name').placeholder = docFile ? baseName() : mapName();
 }
 
 md.value = `# Ambiente de Trabajo
@@ -494,7 +949,7 @@ md.value = `# Ambiente de Trabajo
 
 ## 2. Proceso de Desarrollo
 - Cascada, Ágil, DevOps e Incremental`;
-refresh(); preview();
+movePill(); refresh(); preview();
 </script>
 </body>
 </html>

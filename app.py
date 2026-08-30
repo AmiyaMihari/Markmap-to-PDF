@@ -197,7 +197,7 @@ async def api_merge(
     mapfile: UploadFile | None = File(None),
     position: str = Form("end"),        # start | end | after
     after_page: int = Form(1),
-    fit: str = Form("doc"),             # doc | landscape | exact
+    fit: str = Form("exact"),           # exact = tamano del mapa | doc | landscape
     margin: float = Form(36.0),         # puntos (36 pt = 1.27 cm)
     pad: int = Form(DEFAULT_PAD),
     name: str = Form("tarea"),

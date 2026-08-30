@@ -31,9 +31,15 @@ Se abre solo en <http://127.0.0.1:8765>. Desde ahí:
 
 * **Escribe tu markdown** y ve el mapa en vivo mientras escribes (o arrastra un `.md`
   o el `.html` que descargas del REPL).
-* **Arrastra el PDF de tu tarea** y elige dónde va el mapa: al final, al inicio o
-  después de la página que digas.
+* **Arrastra el PDF de tu tarea** y verás sus páginas en miniatura. Arrastra la
+  tarjeta del mapa entre ellas para colocarlo donde quieras (o usa ← → con la
+  tarjeta seleccionada).
 * Descarga **el PDF unido**, o solo el mapa en **PDF / PNG / SVG**.
+
+La vista previa es **la hoja real**: toma la proporción exacta del PDF que vas a
+obtener y te dice cuánto mide, así que ves de antemano si tu mapa sale ancho o
+alargado. Tiene controles de acercar, alejar y **centrar** (o doble clic sobre el
+mapa para recentrarlo).
 
 Puedes soltar los archivos en cualquier parte de la ventana: el `.pdf` se toma como
 tu documento y el `.md` / `.html` como el mapa.
@@ -47,9 +53,9 @@ En VS Code: `Ctrl+Shift+B` → "Abrir la interfaz web".
 
 | opción | qué hace |
 |---|---|
-| **igual que tu documento** (default) | la hoja del mapa queda idéntica a las de tu tarea (mismo tamaño y orientación) |
+| **del tamaño del mapa** (default) | la hoja mide justo lo que mide el mapa, sin márgenes |
+| **igual que tu documento** | la hoja del mapa queda idéntica a las de tu tarea (mismo tamaño y orientación) |
 | **horizontal** | gira esa hoja a apaisado para que el mapa salga más grande |
-| **del tamaño exacto del mapa** | la hoja mide justo lo que mide el mapa |
 
 ---
 
