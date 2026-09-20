@@ -38,8 +38,27 @@ Se abre solo en <http://127.0.0.1:8765>. Desde ahí:
 
 La vista previa es **la hoja real**: toma la proporción exacta del PDF que vas a
 obtener y te dice cuánto mide, así que ves de antemano si tu mapa sale ancho o
-alargado. Tiene controles de acercar, alejar y **centrar** (o doble clic sobre el
-mapa para recentrarlo).
+alargado. Abajo a la derecha tiene cuatro botones:
+
+| botón | qué hace |
+|---|---|
+| **−** / **+** | alejar y acercar. Si te acercas más allá del encuadre, la hoja deja de recortar y el mapa se extiende por toda la bandeja, con el fondo en blanco |
+| **centrar** (la mirita) | vuelve a encuadrar el mapa en la hoja — igual que hacer doble clic sobre él |
+| **ampliar** (las flechas) | el mapa pasa a ocupar la ventana entera, blanco de borde a borde y sin marcos, desde el primer momento; `Esc`, el mismo botón o un clic en el borde para volver |
+
+### Aire entre ramas
+
+markmap acomoda el árbol lo más apretado que puede y los mapas grandes salen
+amontonados, así que el mapa sale con un poco de aire de fábrica. En **Ajustes**
+puedes moverlo:
+
+| ajuste | qué hace |
+|---|---|
+| **Separación entre ramas** | espacio vertical entre nodos, en todos los niveles (default 10 px; markmap trae 5) |
+| **Aire entre ramas principales** | separación extra solo entre las ramas del primer nivel, para que no se peguen entre sí (default 40 px) |
+
+Ponlos en `5` y `0` si prefieres el mapa tal como lo dibuja markmap. Lo que ves
+en la vista previa es lo que sale en el PDF: es el mismo código.
 
 Puedes soltar los archivos en cualquier parte de la ventana: el `.pdf` se toma como
 tu documento y el `.md` / `.html` como el mapa.
@@ -77,6 +96,8 @@ Pruébalo con el mapa incluido: `python markmap2pdf.py ejemplo.md`
 | `--out carpeta` | carpeta de salida |
 | `--pad 40` | margen blanco alrededor, en px (default 20) |
 | `--scale 4` | resolución del PNG (3 ≈ 288 dpi, default) |
+| `--spacing 10` | separación vertical entre nodos, en px (default 10) |
+| `--gap 40` | aire extra entre las ramas principales, en px (default 40) |
 | `--no-png` / `--no-svg` / `--no-pdf` | omitir formatos |
 
 ---

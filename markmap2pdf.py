@@ -46,11 +46,99 @@ except ImportError:  # pragma: no cover
 
 DEFAULT_PAD = 20
 DEFAULT_SCALE = 3
+DEFAULT_SPACING = 10   # px entre nodos hermanos (markmap trae 5: muy apretado)
+DEFAULT_GAP = 40       # px extra de aire entre las ramas principales
 MD_SUFFIXES = (".md", ".markdown", ".txt")
 
 
 class MarkmapError(RuntimeError):
     """El mapa no se pudo renderizar (markdown invalido, CDN caido, etc.)."""
+
+
+# --------------------------------------------------------------------------- #
+# Aire entre ramas: parche que corre DENTRO de la pagina, sobre markmap.
+# Lo usan por igual el exportador y la vista previa del navegador (app.py lo
+# sirve en /spacing.js), asi que lo que ves es lo que sale en el PDF.
+# --------------------------------------------------------------------------- #
+SPACING_JS = r"""
+/* markmap acomoda el arbol lo mas apretado que puede: entre dos nodos de
+   ramas distintas solo deja `spacingVertical * 2` px, y los mapas grandes
+   salen amontonados.
+
+   Este parche corre DESPUES del layout de markmap (`_relayout`) y separa las
+   ramas principales -las hijas de la raiz- moviendo cada subarbol completo,
+   la mitad hacia arriba y la mitad hacia abajo para que el mapa siga
+   centrado en la raiz. Como solo las ALEJA, nunca se encima nada.
+
+   Opciones que entiende, ademas de las de markmap:
+     branchGap        px extra entre ramas principales
+   (`spacingVertical` es de markmap y afecta a todos los niveles.)          */
+(function (global) {
+  // Recorre el subarbol igual que el layout: lo que esta plegado no cuenta,
+  // sus hijos conservan coordenadas viejas y no hay que moverlos.
+  function walk(node, fn) {
+    fn(node);
+    if (node.payload && node.payload.fold) return;
+    (node.children || []).forEach(function (child) { walk(child, fn); });
+  }
+
+  function wrap(base) {
+    return function () {
+      base.call(this);
+
+      var gap = +((this.options || {}).branchGap) || 0;
+      var root = this.state && this.state.data;
+      if (gap <= 0 || !root || (root.payload && root.payload.fold)) return;
+
+      var kids = (root.children || []).filter(function (k) {
+        return k.state && k.state.rect;
+      });
+      if (kids.length < 2) return;
+
+      kids.forEach(function (kid, i) {
+        var dy = (i - (kids.length - 1) / 2) * gap;
+        if (!dy) return;
+        walk(kid, function (n) {
+          if (n.state && n.state.rect) n.state.rect.y += dy;
+        });
+      });
+
+      // La caja del mapa crecio, y markmap la usa para encuadrar y exportar.
+      var x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+      walk(root, function (n) {
+        var r = n.state && n.state.rect;
+        if (!r) return;
+        x1 = Math.min(x1, r.x);              y1 = Math.min(y1, r.y);
+        x2 = Math.max(x2, r.x + r.width);    y2 = Math.max(y2, r.y + r.height);
+      });
+      this.state.rect = {x1: x1, y1: y1, x2: x2, y2: y2};
+    };
+  }
+
+  function patch(ns) {
+    var proto = ns && ns.Markmap && ns.Markmap.prototype;
+    if (!proto || typeof proto._relayout !== 'function') return false;
+    if (!proto.__branchGap) {
+      proto._relayout = wrap(proto._relayout);
+      proto.__branchGap = true;
+    }
+    return true;
+  }
+
+  global.mmSpacing = {
+    patch: patch,
+    /* Opciones listas para Markmap.create() o setOptions(). */
+    opts: function (spacing, gap, base) {
+      var o = Object.assign({}, base);
+      if (spacing != null && spacing !== '') o.spacingVertical = +spacing;
+      o.branchGap = +gap || 0;
+      return o;
+    }
+  };
+
+  patch(global.markmap);   // si markmap ya cargo, queda parcheado aqui mismo
+})(window);
+"""
 
 
 # --------------------------------------------------------------------------- #
@@ -70,6 +158,7 @@ MD_TEMPLATE = """<!doctype html>
 <script src="https://cdn.jsdelivr.net/npm/markmap-lib@0.18.12/dist/browser/index.iife.js"></script>
 <script>window.__mmLib = window.markmap;</script>  <!-- por si acaso -->
 <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.12/dist/browser/index.js"></script>
+<script>__SPACING_JS__</script>
 </head><body>
 <svg id="mindmap"></svg>
 <script type="text/markdown" id="md-source">__MARKDOWN__</script>
@@ -103,6 +192,11 @@ window.__mmError = null;
     opts.duration = 0;
     if (opts.initialExpandLevel == null || opts.initialExpandLevel === 0) {
       opts.initialExpandLevel = -1;    // -1 = todo expandido
+    }
+
+    // Aire entre ramas (lo mismo que ves en la vista previa).
+    if (window.mmSpacing && window.mmSpacing.patch(view)) {
+      opts = window.mmSpacing.opts(__SPACING__, __GAP__, opts);
     }
 
     var mm = view.Markmap.create('#mindmap', opts, res.root);
@@ -179,7 +273,23 @@ __STYLES__
 # --------------------------------------------------------------------------- #
 # Motor reutilizable (lo usan tanto el CLI como la interfaz web).
 # --------------------------------------------------------------------------- #
-async def _load_map(page, source: str, kind: str) -> None:
+# JS que vuelve a acomodar un mapa que la pagina ya dibujo por su cuenta
+# (el .html del REPL), para que respete el aire entre ramas que elegiste.
+JS_RESPACE = """
+async ({spacing, gap}) => {
+  const mm = window.mm;   // markmap-render deja ahi la instancia
+  if (!mm || !window.mmSpacing || !window.mmSpacing.patch(window.markmap)) return false;
+  mm.setOptions(Object.assign(window.mmSpacing.opts(spacing, gap), {duration: 0}));
+  await mm.renderData();
+  await mm.fit();
+  return true;
+}
+"""
+
+
+async def _load_map(page, source: str, kind: str,
+                    spacing: int = DEFAULT_SPACING,
+                    gap: int = DEFAULT_GAP) -> None:
     """Deja la pagina con el mapa ya renderizado.
 
     kind: "md"   -> `source` es texto Markdown
@@ -188,13 +298,22 @@ async def _load_map(page, source: str, kind: str) -> None:
     """
     if kind == "md":
         md = source.replace("</script", "<\\/script")
-        await page.set_content(MD_TEMPLATE.replace("__MARKDOWN__", md),
-                               wait_until="networkidle")
+        html = (
+            MD_TEMPLATE.replace("__SPACING_JS__", SPACING_JS)
+            .replace("__SPACING__", str(int(spacing)))
+            .replace("__GAP__", str(int(gap)))
+            .replace("__MARKDOWN__", md)   # al final: el markdown es del usuario
+        )
+        await page.set_content(html, wait_until="networkidle")
         await page.wait_for_function("window.__mmReady === true", timeout=60000)
         err = await page.evaluate("window.__mmError")
         if err:
             raise MarkmapError(f"markmap no pudo procesar el Markdown: {err}")
         return
+
+    # El HTML del REPL trae su propio markmap ya armado: le metemos el parche
+    # antes de que corra y lo volvemos a acomodar una vez dibujado.
+    await page.add_init_script(SPACING_JS)
 
     if kind == "html":
         await page.set_content(source, wait_until="networkidle")
@@ -210,6 +329,9 @@ async def _load_map(page, source: str, kind: str) -> None:
         ) from exc
     await page.wait_for_timeout(800)  # deja terminar la animacion inicial
 
+    if await page.evaluate(JS_RESPACE, {"spacing": int(spacing), "gap": int(gap)}):
+        await page.wait_for_timeout(200)
+
 
 async def render_to_bytes(
     browser,
@@ -217,6 +339,8 @@ async def render_to_bytes(
     kind: str,
     pad: int = DEFAULT_PAD,
     scale: int = DEFAULT_SCALE,
+    spacing: int = DEFAULT_SPACING,
+    gap: int = DEFAULT_GAP,
     want: tuple[str, ...] = ("pdf", "png", "svg"),
 ) -> dict:
     """Renderiza el mapa y devuelve los bytes de cada formato pedido.
@@ -231,7 +355,7 @@ async def render_to_bytes(
     )
     try:
         page = await ctx.new_page()
-        await _load_map(page, source, kind)
+        await _load_map(page, source, kind, spacing=spacing, gap=gap)
 
         data = await page.evaluate(JS_EXTRACT, pad)
         w, h = data["w"], data["h"]
@@ -300,7 +424,8 @@ async def render_files(src: pathlib.Path, args) -> list[pathlib.Path]:
         browser = await p.chromium.launch()
         try:
             out = await render_to_bytes(
-                browser, source, kind, pad=args.pad, scale=args.scale, want=want
+                browser, source, kind, pad=args.pad, scale=args.scale,
+                spacing=args.spacing, gap=args.gap, want=want,
             )
         finally:
             await browser.close()
@@ -327,6 +452,10 @@ def main() -> None:
                     help=f"margen blanco en px (default {DEFAULT_PAD})")
     ap.add_argument("--scale", type=int, default=DEFAULT_SCALE,
                     help=f"factor de resolucion del PNG (default {DEFAULT_SCALE})")
+    ap.add_argument("--spacing", type=int, default=DEFAULT_SPACING,
+                    help=f"separacion vertical entre nodos en px (default {DEFAULT_SPACING})")
+    ap.add_argument("--gap", type=int, default=DEFAULT_GAP,
+                    help=f"aire extra entre ramas principales en px (default {DEFAULT_GAP})")
     ap.add_argument("--no-pdf", dest="pdf", action="store_false")
     ap.add_argument("--no-png", dest="png", action="store_false")
     ap.add_argument("--no-svg", dest="svg", action="store_false")

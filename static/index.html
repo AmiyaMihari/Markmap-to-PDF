@@ -13,6 +13,8 @@
 <script src="https://cdn.jsdelivr.net/npm/markmap-lib@0.18.12/dist/browser/index.iife.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.12/dist/browser/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<!-- el mismo aire entre ramas que aplica el exportador (viene de markmap2pdf.py) -->
+<script src="/spacing.js"></script>
 
 <style>
 /* ─────────────────────────────  tokens  ───────────────────────────── */
@@ -279,7 +281,7 @@ details[open] .opts{animation:rise .5s var(--ease) both}
 .preview-card{position:sticky; top:24px}
 .tray{
   position:relative; display:flex; align-items:center; justify-content:center;
-  height:min(60vh,520px); padding:16px; border-radius:15px;
+  height:min(72vh,640px); padding:16px; border-radius:15px;
   background:rgba(120,120,128,.09); border:1px solid var(--line); overflow:hidden;
 }
 .paper{
@@ -305,6 +307,42 @@ details[open] .opts{animation:rise .5s var(--ease) both}
 .pv-ctl button:active{transform:scale(.9)}
 .pv-ctl button svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2.1; stroke-linecap:round; stroke-linejoin:round}
 .pv-ctl .sep{width:1px; height:17px; background:rgba(0,0,0,.12); margin:0 3px}
+.pv-ctl .ic-min{display:none}
+.preview-card.big .pv-ctl .ic-max{display:none}
+.preview-card.big .pv-ctl .ic-min{display:block}
+
+/* vista ampliada: la tarjeta toma la ventana entera y se queda con lo minimo
+   de marco -titulo fuera, bordes flacos- para que la hoja crezca lo mas
+   posible; lo demas es espacio para el mapa. */
+.scrim{
+  position:fixed; inset:0; z-index:55; background:rgba(0,0,0,.42);
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+  animation:fadeIn .35s var(--ease) both;
+}
+body.big-on{overflow:hidden}
+.preview-card.big{
+  position:fixed; inset:10px; z-index:60; margin:0; padding:9px;
+  display:flex; flex-direction:column; overflow:hidden; border-radius:17px;
+  box-shadow:var(--sh-l); animation:pop .45s var(--spring) both;
+}
+.preview-card.big h2{display:none}
+.preview-card.big .tray{
+  flex:1 1 auto; height:auto; min-height:0; padding:8px; border-radius:11px;
+  background:var(--paper);   /* la hoja ya ocupa la bandeja: todo es papel */
+}
+.preview-card.big .paper{box-shadow:none; border-radius:9px}
+.preview-card.big .pv-foot{margin-top:8px; padding:0 4px}
+
+/* modo lupa: en cuanto te acercas mas alla del encuadre, la hoja deja de
+   recortar y la bandeja entera se pone blanca, asi el mapa usa todo el
+   espacio disponible. El boton de centrar devuelve la hoja. */
+.preview-card.inspect .tray{background:var(--paper)}
+.preview-card.inspect .paper{background:none; box-shadow:none; overflow:visible}
+.preview-card.inspect #preview{overflow:visible}
+
+.pv-hint{display:none; color:var(--faint)}
+.preview-card.big .pv-hint,
+.preview-card.inspect .pv-hint{display:inline}
 #preview{width:100%; height:100%; display:block}
 .pv-foot{
   margin-top:12px; display:flex; justify-content:space-between; gap:12px;
@@ -468,6 +506,14 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
           </summary>
           <div class="opts">
             <div class="row">
+              <label for="spacing">Separación entre ramas</label>
+              <input type="number" id="spacing" min="0" max="120" value="10"><span class="unit">px entre nodos</span>
+            </div>
+            <div class="row">
+              <label for="gap">Aire entre ramas principales</label>
+              <input type="number" id="gap" min="0" max="400" value="40"><span class="unit">px extra, solo en el primer nivel</span>
+            </div>
+            <div class="row">
               <label for="pad">Margen del mapa</label>
               <input type="number" id="pad" min="0" max="400" value="20"><span class="unit">px alrededor</span>
             </div>
@@ -506,16 +552,26 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
               <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
             </button>
             <span class="sep"></span>
-            <button id="zFit" title="Centrar el mapa" aria-label="Centrar el mapa">
-              <svg viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg>
+            <button id="zFit" title="Centrar el mapa (o doble clic)" aria-label="Centrar el mapa">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+            </button>
+            <button id="zBig" title="Ver el mapa en grande" aria-label="Ver el mapa en grande">
+              <svg class="ic-max" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7.5 7.5M3 21l7.5-7.5"/></svg>
+              <svg class="ic-min" viewBox="0 0 24 24"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
             </button>
           </div>
         </div>
-        <div class="pv-foot"><span id="pvInfo">Escribe tu mapa</span><span id="pvSize"></span></div>
+        <div class="pv-foot">
+          <span id="pvInfo">Escribe tu mapa</span>
+          <span class="pv-hint" id="pvHint"></span>
+          <span id="pvSize"></span>
+        </div>
       </section>
     </div>
   </div>
 </div>
+
+<div class="scrim hidden" id="scrim"></div>
 
 <div class="bar">
   <div class="bar-in">
@@ -543,13 +599,22 @@ if (window.pdfjsLib)
 const T = new markmap.Transformer();
 let mm = null, mini = null;
 
+/* Aire entre ramas: un solo lugar que lo lee, para que la vista previa y lo
+   que se descarga digan siempre lo mismo (incluso con la casilla vacia). */
+const SPACING = {spacing: 10, gap: 40};
+function air(key){
+  const v = parseInt($('#' + key).value, 10);
+  return Number.isFinite(v) && v >= 0 ? v : SPACING[key];
+}
+
 function mapOpts(res){
   let o = {};
   if (markmap.deriveOptions && res.frontmatter && res.frontmatter.markmap)
     o = markmap.deriveOptions(res.frontmatter.markmap);
   o.duration = 0;
   if (o.initialExpandLevel == null || o.initialExpandLevel === 0) o.initialExpandLevel = -1;
-  return o;
+  // el mismo aire que aplicara el exportador -> la vista previa no miente
+  return window.mmSpacing ? window.mmSpacing.opts(air('spacing'), air('gap'), o) : o;
 }
 async function preview(){
   if (mapFile || !md.value.trim()){
@@ -587,7 +652,8 @@ function renderMini(){
   }catch(e){ console.error('mini', e); }
 }
 let tmr;
-md.addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(preview, 250); });
+const redraw = () => { clearTimeout(tmr); tmr = setTimeout(preview, 250); };
+md.addEventListener('input', redraw);
 
 /* La hoja de la vista previa toma la PROPORCION EXACTA del PDF que saldra.
    getBBox() sobre el <g> devuelve la caja del contenido sin el zoom aplicado,
@@ -604,29 +670,84 @@ function pageSize(){
 }
 async function fitPaper(){
   const sz = pageSize(); if (!sz) return;
-  const tray = $('#tray'), paper = $('#paper');
-  const maxW = tray.clientWidth - 32, maxH = tray.clientHeight - 32;
+  const tray = $('#tray'), paper = $('#paper'), cs = getComputedStyle(tray);
+  // el hueco real de la bandeja: al ampliar, el margen se encoge
+  const maxW = tray.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const maxH = tray.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom);
   if (maxW <= 0 || maxH <= 0) return;
-  const k = Math.min(maxW / sz.w, maxH / sz.h);
-  paper.style.width  = Math.max(28, Math.round(sz.w * k)) + 'px';
-  paper.style.height = Math.max(28, Math.round(sz.h * k)) + 'px';
+  if (pvCard.classList.contains('big')){
+    // ampliado se viene a leer el mapa, no a medir la hoja: el papel se queda
+    // con la bandeja entera y el mapa entra lo mas grande que se pueda
+    paper.style.width = maxW + 'px';
+    paper.style.height = maxH + 'px';
+  } else {
+    const k = Math.min(maxW / sz.w, maxH / sz.h);
+    paper.style.width  = Math.max(28, Math.round(sz.w * k)) + 'px';
+    paper.style.height = Math.max(28, Math.round(sz.h * k)) + 'px';
+  }
   $('#pvSize').textContent =
     `hoja ${sz.w} × ${sz.h} px · ${(sz.w/96).toFixed(1)}″ × ${(sz.h/96).toFixed(1)}″`;
   await new Promise(r => requestAnimationFrame(r));
-  if (mm) await mm.fit();
+  await recenter();
+}
+
+const pvCard = document.querySelector('.preview-card');
+
+/* Encuadrar el mapa en la hoja y quedarnos con esa escala como referencia:
+   todo lo que pase de ahi es acercarse, y ahi la hoja estorba mas que ayuda. */
+let kFit = 0;
+async function recenter(){
+  if (!mm) return;
+  await mm.fit();
+  kFit = d3.zoomTransform($('#preview')).k;
+  lens();
+}
+function lens(){
+  if (!mm || !kFit) return;
+  // ampliado ya es todo papel, no hay hoja que estorbe
+  const k = d3.zoomTransform($('#preview')).k;
+  pvCard.classList.toggle('inspect',
+    !pvCard.classList.contains('big') && k > kFit * 1.02);
+  hint();
+}
+function hint(){
+  $('#pvHint').textContent =
+    pvCard.classList.contains('inspect') ? 'acercado · centra para ver la hoja' :
+    pvCard.classList.contains('big')     ? 'Esc para salir' : '';
 }
 addEventListener('resize', fitPaper);
 $('#pad').addEventListener('input', fitPaper);
+// el espaciado cambia el layout: hay que volver a dibujar el mapa
+['#spacing','#gap'].forEach(sel => $(sel).addEventListener('input', redraw));
 // Red de seguridad: recentrar siempre que la hoja cambie de tamano.
 if (window.ResizeObserver)
-  new ResizeObserver(() => { if (mm) mm.fit(); }).observe($('#paper'));
+  new ResizeObserver(() => recenter()).observe($('#paper'));
 
-/* controles de la vista previa: acercar, alejar y recentrar */
-function zoom(f){ if (mm && mm.rescale) mm.rescale(f); }
+/* controles de la vista previa: acercar, alejar, centrar y ampliar */
+function zoom(f){ if (mm && mm.rescale){ mm.rescale(f); requestAnimationFrame(lens); } }
 $('#zIn').onclick  = () => zoom(1.25);
 $('#zOut').onclick = () => zoom(0.8);
 $('#zFit').onclick = () => fitPaper();
 $('#preview').addEventListener('dblclick', () => fitPaper());
+// la rueda tambien acerca: hay que revisar si ya nos salimos de la hoja
+$('#preview').addEventListener('wheel', () => requestAnimationFrame(lens), {passive:true});
+
+/* ampliar: la vista previa ocupa la ventana entera (Esc o clic fuera para salir) */
+function big(on){
+  pvCard.classList.toggle('big', on);
+  document.body.classList.toggle('big-on', on);
+  $('#scrim').classList.toggle('hidden', !on);
+  $('#zBig').title = on ? 'Volver al tamaño normal (Esc)' : 'Ver el mapa en grande';
+  hint();
+  requestAnimationFrame(fitPaper);
+}
+$('#zBig').onclick = () => big(!pvCard.classList.contains('big'));
+$('#scrim').onclick = () => big(false);
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' && pvCard.classList.contains('big')) big(false);
+});
+// la bandeja cambia de tamano al ampliar: la hoja se vuelve a ajustar sola
+if (window.ResizeObserver) new ResizeObserver(() => fitPaper()).observe($('#tray'));
 
 /* ══════════════ segmented control ══════════════ */
 const segBtns = [...document.querySelectorAll('.seg button')];
@@ -887,6 +1008,8 @@ function baseName(){
 function mapFields(fd){
   if (mapFile) fd.append('mapfile', mapFile); else fd.append('md', md.value);
   fd.append('pad', $('#pad').value || 20);
+  fd.append('spacing', air('spacing'));
+  fd.append('gap', air('gap'));
 }
 const TICK = '<svg class="tick" viewBox="0 0 24 24"><path d="m4 12.5 5.2 5.2L20 6.8"/></svg>';
 function say(html, cls=''){ statusEl.className = cls; statusEl.innerHTML = html; }

@@ -30,7 +30,15 @@ from fastapi.responses import FileResponse, Response
 from playwright.async_api import async_playwright
 from pypdf import PageObject, PdfReader, PdfWriter, Transformation
 
-from markmap2pdf import DEFAULT_PAD, DEFAULT_SCALE, MarkmapError, render_to_bytes
+from markmap2pdf import (
+    DEFAULT_GAP,
+    DEFAULT_PAD,
+    DEFAULT_SCALE,
+    DEFAULT_SPACING,
+    SPACING_JS,
+    MarkmapError,
+    render_to_bytes,
+)
 
 HERE = pathlib.Path(__file__).parent
 INDEX = HERE / "static" / "index.html"
@@ -108,14 +116,16 @@ async def _map_source(md: str, mapfile: UploadFile | None) -> tuple[str, str]:
     return (md, "md")
 
 
-async def _render(source: str, kind: str, pad: int, scale: int, want) -> dict:
+async def _render(source: str, kind: str, pad: int, scale: int, want,
+                  spacing: int = DEFAULT_SPACING, gap: int = DEFAULT_GAP) -> dict:
     if _browser is None:
         raise HTTPException(503, "El navegador todavia no esta listo, reintenta.")
     # Chromium no es reentrante para esto; serializamos las conversiones.
     async with _lock:
         try:
             return await render_to_bytes(
-                _browser, source, kind, pad=pad, scale=scale, want=want
+                _browser, source, kind, pad=pad, scale=scale,
+                spacing=spacing, gap=gap, want=want,
             )
         except MarkmapError as exc:
             raise HTTPException(400, str(exc)) from exc
@@ -159,6 +169,12 @@ async def index() -> FileResponse:
     return FileResponse(INDEX, media_type="text/html")
 
 
+@app.get("/spacing.js")
+async def spacing_js() -> Response:
+    """El parche de aire entre ramas, el mismo que usa el exportador."""
+    return Response(SPACING_JS, media_type="application/javascript")
+
+
 @app.post("/api/pdfinfo")
 async def pdfinfo(doc: UploadFile = File(...)) -> dict:
     """Numero de paginas del PDF, para el selector de posicion."""
@@ -178,6 +194,8 @@ async def api_map(
     fmt: str = Form("pdf"),
     pad: int = Form(DEFAULT_PAD),
     scale: int = Form(DEFAULT_SCALE),
+    spacing: int = Form(DEFAULT_SPACING),
+    gap: int = Form(DEFAULT_GAP),
     name: str = Form("mapa"),
 ) -> Response:
     """Solo el mapa, en el formato pedido."""
@@ -185,7 +203,7 @@ async def api_map(
         raise HTTPException(400, "Formato invalido.")
 
     source, kind = await _map_source(md, mapfile)
-    out = await _render(source, kind, pad, scale, want=(fmt,))
+    out = await _render(source, kind, pad, scale, want=(fmt,), spacing=spacing, gap=gap)
     stem = pathlib.Path(name).stem or "mapa"
     return _download(out[fmt], f"{stem}.{fmt}", MIME[fmt])
 
@@ -200,6 +218,8 @@ async def api_merge(
     fit: str = Form("exact"),           # exact = tamano del mapa | doc | landscape
     margin: float = Form(36.0),         # puntos (36 pt = 1.27 cm)
     pad: int = Form(DEFAULT_PAD),
+    spacing: int = Form(DEFAULT_SPACING),
+    gap: int = Form(DEFAULT_GAP),
     name: str = Form("tarea"),
 ) -> Response:
     """El PDF de la tarea + el mapa, en un solo archivo."""
@@ -214,7 +234,8 @@ async def api_merge(
         raise HTTPException(400, "Ese PDF no tiene paginas.")
 
     source, kind = await _map_source(md, mapfile)
-    out = await _render(source, kind, pad, DEFAULT_SCALE, want=("pdf",))
+    out = await _render(source, kind, pad, DEFAULT_SCALE, want=("pdf",),
+                        spacing=spacing, gap=gap)
     map_page = PdfReader(io.BytesIO(out["pdf"])).pages[0]
 
     if fit in ("doc", "landscape"):
