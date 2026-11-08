@@ -86,6 +86,76 @@ body{
   -webkit-background-clip:text; background-clip:text; color:transparent;
 }
 .hero p{margin:0; color:var(--muted); font-size:16.5px; letter-spacing:-.01em; max-width:52ch}
+.hero{display:flex; align-items:flex-start; justify-content:space-between; gap:20px}
+
+/* ─────────────────────────────  idioma  ───────────────────────────── */
+.lang{
+  position:relative; display:inline-grid; grid-template-columns:1fr 1fr; flex:none;
+  margin-top:8px; padding:3px; border-radius:11px; background:rgba(120,120,128,.12);
+}
+.lang button{
+  position:relative; z-index:1; border:0; background:none; cursor:pointer;
+  font:inherit; font-size:12.5px; font-weight:600; letter-spacing:.03em;
+  padding:6px 13px; border-radius:8px; color:var(--muted); transition:color .35s var(--ease);
+}
+.lang button:hover{color:var(--text)}
+.lang button[aria-pressed="true"]{color:var(--text)}
+.lang-pill{
+  position:absolute; z-index:0; top:3px; left:3px; width:calc(50% - 3px); height:calc(100% - 6px);
+  background:var(--solid); border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.11);
+  transition:transform .45s var(--spring);
+}
+.lang[data-active="en"] .lang-pill{transform:translateX(100%)}
+
+/* ─────────────────────────────  instructivo  ───────────────────────── */
+/* .card.guide: mas fuerte que .card, que viene despues y le pondria relleno */
+.card.guide{padding:0; margin:-12px 0 20px}
+.guide > summary{padding:17px 24px; gap:11px}
+.guide > summary .gi{
+  width:24px; height:24px; flex:none; display:grid; place-items:center; border-radius:50%;
+  background:var(--accent-soft); color:var(--accent);
+}
+.guide > summary b{font-size:15px; font-weight:600; color:var(--text); letter-spacing:-.015em}
+.guide > summary .hint{color:var(--faint); font-size:13.5px; font-weight:450}
+.guide > summary .chev{margin-left:auto; flex:none}
+.guide > summary b{white-space:nowrap}
+@media(max-width:560px){.guide > summary .hint{display:none}}
+.guide-body{
+  display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:28px;
+  padding:4px 24px 24px;
+}
+@media(max-width:860px){.guide-body{grid-template-columns:1fr}}
+.guide[open] .guide-body{animation:rise .5s var(--ease) both}
+.guide h3{
+  margin:0 0 8px; font-size:12px; font-weight:650; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--faint);
+}
+.guide p{margin:0 0 12px; font-size:13.5px; line-height:1.55; color:var(--muted); letter-spacing:-.005em}
+.syntax{list-style:none; margin:0 0 14px; padding:0; display:grid; gap:7px}
+.syntax li{display:grid; grid-template-columns:8.6em 1fr; align-items:baseline; gap:10px; font-size:13.5px}
+.syntax li.wide{display:flex; flex-wrap:wrap; gap:6px 8px}
+.guide code{
+  font-family:ui-monospace,"SF Mono","Cascadia Code",Menlo,monospace; font-size:12.5px;
+  padding:2px 7px; border-radius:6px; background:var(--accent-soft); color:var(--accent);
+  white-space:nowrap; justify-self:start;
+}
+.guide pre{
+  margin:0; padding:12px 14px; border-radius:var(--r-s); background:var(--solid);
+  border:1px solid var(--line); color:var(--text); overflow:auto;
+  font-family:ui-monospace,"SF Mono","Cascadia Code",Menlo,monospace; font-size:12.5px; line-height:1.65;
+}
+.guide pre.prompt{white-space:pre-wrap; max-height:360px}
+.copy{
+  margin-top:10px; display:inline-flex; align-items:center; gap:7px; cursor:pointer;
+  font:inherit; font-size:13px; font-weight:550; letter-spacing:-.01em;
+  padding:8px 14px; border-radius:10px; border:1px solid var(--line-2);
+  background:var(--solid); color:var(--text);
+  transition:transform .4s var(--spring), border-color .3s var(--ease), color .3s var(--ease);
+}
+.copy:hover{transform:translateY(-1px); border-color:var(--accent); color:var(--accent)}
+.copy:active{transform:scale(.97)}
+.copy.ok{border-color:var(--ok); color:var(--ok)}
+.copy svg{width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2.1; stroke-linecap:round; stroke-linejoin:round}
 
 @keyframes rise{from{opacity:0; transform:translateY(18px)} to{opacity:1; transform:none}}
 
@@ -418,24 +488,74 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
 
 <div class="wrap">
   <header class="hero">
-    <h1>markmap <span>→</span> PDF</h1>
-    <p>Tu mapa mental, recortado y con fondo blanco. Solo, o dentro de tu tarea.</p>
+    <div>
+      <h1>markmap <span>→</span> PDF</h1>
+      <p data-i18n="hero.sub">Tu mapa mental, recortado y con fondo blanco. Solo, o dentro de tu tarea.</p>
+    </div>
+    <div class="lang" role="group" aria-label="Idioma" data-i18n-aria="lang.label" data-active="es">
+      <span class="lang-pill"></span>
+      <button type="button" data-lang="es" aria-pressed="true" title="Español">ES</button>
+      <button type="button" data-lang="en" aria-pressed="false" title="English">EN</button>
+    </div>
   </header>
+
+  <details class="card guide" style="--d:.5">
+    <summary>
+      <span class="gi">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+      </span>
+      <b data-i18n="guide.title">¿Cómo se usa?</b>
+      <span class="hint" data-i18n="guide.hint">el formato del mapa y un prompt para IA</span>
+      <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+    </summary>
+    <div class="guide-body">
+      <div>
+        <h3 data-i18n="guide.format">El formato</h3>
+        <p data-i18n="guide.formatIntro">Cada línea es un nodo. Lo que pones al inicio decide dónde va:</p>
+        <ul class="syntax">
+          <li><code>#</code><span data-i18n="guide.h1">el tema central (solo uno)</span></li>
+          <li><code>##</code><span data-i18n="guide.h2">las ramas principales</span></li>
+          <li><code>###</code><span data-i18n="guide.h3">los subtemas de cada rama</span></li>
+          <li><code>-</code><span data-i18n="guide.li">las ideas</span></li>
+          <li><code data-i18n="guide.indent">4 espacios + -</code><span data-i18n="guide.indentDesc">una idea dentro de la de arriba</span></li>
+          <li class="wide"><code data-i18n="guide.bold">**negrita**</code><code data-i18n="guide.italic">*cursiva*</code><code>`code`</code><code>[link](url)</code><span data-i18n="guide.styles">también funcionan</span></li>
+        </ul>
+        <pre data-i18n="guide.example"># Fotosíntesis
+## Etapas
+### Fase luminosa
+- Ocurre en los tilacoides
+    - Produce ATP y NADPH
+### Ciclo de Calvin
+- Fija el dióxido de carbono
+## Factores
+- Luz, agua y temperatura</pre>
+      </div>
+      <div>
+        <h3 data-i18n="guide.ai">Con IA</h3>
+        <p data-i18n="guide.aiIntro">¿Usas ChatGPT, Claude, Gemini u otra IA? Copia este prompt, cambia el tema y pega aquí lo que te responda (con el botón de copiar de su bloque de código).</p>
+        <pre class="prompt" id="aiPrompt" data-i18n="guide.prompt"></pre>
+        <button type="button" class="copy" id="copyPrompt">
+          <svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          <span data-i18n="guide.copy">Copiar prompt</span>
+        </button>
+      </div>
+    </div>
+  </details>
 
   <div class="grid">
     <div class="col">
 
       <section class="card" style="--d:1">
-        <h2><span class="num">1</span> Tu mapa</h2>
+        <h2><span class="num">1</span> <span data-i18n="card.map">Tu mapa</span></h2>
 
         <div class="seg" role="tablist">
           <span class="seg-pill" id="pill"></span>
-          <button role="tab" data-tab="write" aria-selected="true">Escribir</button>
-          <button role="tab" data-tab="file" aria-selected="false">Subir archivo</button>
+          <button role="tab" data-tab="write" aria-selected="true" data-i18n="tab.write">Escribir</button>
+          <button role="tab" data-tab="file" aria-selected="false" data-i18n="tab.file">Subir archivo</button>
         </div>
 
         <div id="pane-write">
-          <textarea id="md" spellcheck="false" placeholder="# Título del mapa
+          <textarea id="md" spellcheck="false" data-i18n="md.example" data-i18n-ph="md.placeholder" placeholder="# Título del mapa
 
 ## Tema 1
 - Idea
@@ -461,21 +581,21 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
               </svg>
             </div>
-            <b>Arrastra tu .md o el .html de markmap</b>
-            <span>o haz clic para elegirlo</span>
+            <b data-i18n="drop.map">Arrastra tu .md o el .html de markmap</b>
+            <span data-i18n="drop.or">o haz clic para elegirlo</span>
           </div>
           <div id="mapInfo" class="hidden" style="margin-top:12px">
             <div class="file">
               <div class="ic" id="mapIco">MD</div>
-              <div class="meta"><div class="nm" id="mapName"></div><div class="sub">se usará este archivo</div></div>
-              <button class="x" id="mapClear" title="Quitar">×</button>
+              <div class="meta"><div class="nm" id="mapName"></div><div class="sub" data-i18n="file.used">se usará este archivo</div></div>
+              <button class="x" id="mapClear" title="Quitar" data-i18n-title="file.remove">×</button>
             </div>
           </div>
         </div>
       </section>
 
       <section class="card" style="--d:2">
-        <h2><span class="num">2</span> Unir con tu tarea <em>— opcional</em></h2>
+        <h2><span class="num">2</span> <span data-i18n="card.doc">Unir con tu tarea</span> <em data-i18n="card.optional">— opcional</em></h2>
 
         <div class="drop" id="dropDoc">
           <div class="ic">
@@ -483,20 +603,20 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
               <path d="M12 3v13"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/>
             </svg>
           </div>
-          <b>Arrastra aquí el PDF de tu tarea</b>
-          <span>o haz clic para elegirlo</span>
+          <b data-i18n="drop.doc">Arrastra aquí el PDF de tu tarea</b>
+          <span data-i18n="drop.or">o haz clic para elegirlo</span>
         </div>
 
         <div id="docBox" class="hidden">
           <div class="file">
             <div class="ic">PDF</div>
             <div class="meta"><div class="nm" id="docName"></div><div class="sub" id="docSub"></div></div>
-            <button class="x" id="docClear" title="Quitar">×</button>
+            <button class="x" id="docClear" title="Quitar" data-i18n-title="file.remove">×</button>
           </div>
 
           <div class="order">
             <div class="order-head">
-              <span class="t">Arrastra el mapa para colocarlo donde quieras</span>
+              <span class="t" data-i18n="order.help">Arrastra el mapa para colocarlo donde quieras</span>
               <span class="v" id="orderLbl">al final</span>
             </div>
             <div class="strip" id="strip"></div>
@@ -504,11 +624,11 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
 
           <div class="opts">
             <div class="row">
-              <label for="fit">Tamaño de la hoja</label>
+              <label for="fit" data-i18n="fit.label">Tamaño de la hoja</label>
               <select id="fit">
-                <option value="exact" selected>del tamaño del mapa</option>
-                <option value="doc">igual que tu documento</option>
-                <option value="landscape">horizontal, para que salga más grande</option>
+                <option value="exact" selected data-i18n="fit.exact">del tamaño del mapa</option>
+                <option value="doc" data-i18n="fit.doc">igual que tu documento</option>
+                <option value="landscape" data-i18n="fit.landscape">horizontal, para que salga más grande</option>
               </select>
             </div>
           </div>
@@ -519,27 +639,27 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
         <details>
           <summary>
             <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            Ajustes
+            <span data-i18n="set.title">Ajustes</span>
           </summary>
           <div class="opts">
             <div class="row">
-              <label for="spacing">Separación entre ramas</label>
-              <input type="number" id="spacing" min="0" max="120" value="10"><span class="unit">px entre nodos</span>
+              <label for="spacing" data-i18n="set.spacing">Separación entre ramas</label>
+              <input type="number" id="spacing" min="0" max="120" value="10"><span class="unit" data-i18n="set.spacingUnit">px entre nodos</span>
             </div>
             <div class="row">
-              <label for="gap">Aire entre ramas principales</label>
-              <input type="number" id="gap" min="0" max="400" value="40"><span class="unit">px extra, solo en el primer nivel</span>
+              <label for="gap" data-i18n="set.gap">Aire entre ramas principales</label>
+              <input type="number" id="gap" min="0" max="400" value="40"><span class="unit" data-i18n="set.gapUnit">px extra, solo en el primer nivel</span>
             </div>
             <div class="row">
-              <label for="pad">Margen del mapa</label>
-              <input type="number" id="pad" min="0" max="400" value="20"><span class="unit">px alrededor</span>
+              <label for="pad" data-i18n="set.pad">Margen del mapa</label>
+              <input type="number" id="pad" min="0" max="400" value="20"><span class="unit" data-i18n="set.padUnit">px alrededor</span>
             </div>
             <div class="row">
-              <label for="margin">Margen de la hoja</label>
-              <input type="number" id="margin" min="0" max="200" value="36"><span class="unit">pt · solo si la hoja no es del tamaño del mapa</span>
+              <label for="margin" data-i18n="set.margin">Margen de la hoja</label>
+              <input type="number" id="margin" min="0" max="200" value="36"><span class="unit" data-i18n="set.marginUnit">pt · solo si la hoja no es del tamaño del mapa</span>
             </div>
             <div class="row">
-              <label for="scale">Calidad del PNG</label>
+              <label for="scale" data-i18n="set.scale">Calidad del PNG</label>
               <select id="scale">
                 <option value="2">2× · 192 dpi</option>
                 <option value="3" selected>3× · 288 dpi</option>
@@ -547,7 +667,7 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
               </select>
             </div>
             <div class="row">
-              <label for="name">Nombre del archivo</label>
+              <label for="name" data-i18n="set.name">Nombre del archivo</label>
               <input type="text" id="name" placeholder="mapa" style="flex:1;min-width:160px">
             </div>
           </div>
@@ -558,28 +678,28 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
 
     <div class="col">
       <section class="card preview-card" style="--d:2">
-        <h2>Vista previa</h2>
+        <h2 data-i18n="pv.title">Vista previa</h2>
         <div class="tray" id="tray">
           <div class="paper" id="paper"><svg id="preview"></svg></div>
           <div class="pv-ctl">
-            <button id="zOut" title="Alejar" aria-label="Alejar">
+            <button id="zOut" title="Alejar" aria-label="Alejar" data-i18n-title="pv.zoomOut" data-i18n-aria="pv.zoomOut">
               <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
             </button>
-            <button id="zIn" title="Acercar" aria-label="Acercar">
+            <button id="zIn" title="Acercar" aria-label="Acercar" data-i18n-title="pv.zoomIn" data-i18n-aria="pv.zoomIn">
               <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
             </button>
             <span class="sep"></span>
-            <button id="zFit" title="Centrar el mapa (o doble clic)" aria-label="Centrar el mapa">
+            <button id="zFit" title="Centrar el mapa (o doble clic)" aria-label="Centrar el mapa" data-i18n-title="pv.center" data-i18n-aria="pv.centerAria">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
             </button>
-            <button id="zBig" title="Ver el mapa en grande" aria-label="Ver el mapa en grande">
+            <button id="zBig" title="Ver el mapa en grande" aria-label="Ver el mapa en grande" data-i18n-title="pv.big" data-i18n-aria="pv.big">
               <svg class="ic-max" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7.5 7.5M3 21l7.5-7.5"/></svg>
               <svg class="ic-min" viewBox="0 0 24 24"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
             </button>
           </div>
         </div>
         <div class="pv-foot">
-          <span id="pvInfo">Escribe tu mapa</span>
+          <span id="pvInfo" data-i18n="pv.empty">Escribe tu mapa</span>
           <span class="pv-hint" id="pvHint"></span>
           <span id="pvSize"></span>
         </div>
@@ -593,7 +713,7 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
 <div class="bar">
   <div class="bar-in">
     <button class="act primary" id="btnMain">Descargar PDF</button>
-    <button class="act hidden" data-fmt="pdf" id="btnPdf">Solo el mapa · PDF</button>
+    <button class="act hidden" data-fmt="pdf" id="btnPdf" data-i18n="bar.mapOnly">Solo el mapa · PDF</button>
     <button class="act" data-fmt="png">PNG</button>
     <button class="act" data-fmt="svg">SVG</button>
     <span id="status"></span>
@@ -602,6 +722,9 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
 
 <input type="file" id="pickMap" accept=".md,.markdown,.txt,.html,.htm" class="hidden">
 <input type="file" id="pickDoc" accept="application/pdf,.pdf" class="hidden">
+
+<!-- sin defer: deja la pagina en el idioma elegido antes del primer pintado -->
+<script src="i18n.js"></script>
 
 </body>
 </html>

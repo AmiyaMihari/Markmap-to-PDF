@@ -23,18 +23,20 @@
   };
   const SVGNS = 'http://www.w3.org/2000/svg';
   const PX = 0.75;       // 1 px CSS = 0.75 pt: la misma hoja que daba Chromium
-  const NET = 'No se pudo descargar una parte de la página; revisa tu conexión.';
+
+  // Los errores llevan un codigo; la interfaz lo muestra en su idioma (i18n.js).
+  function fail(code) { const e = new Error(code); e.code = code; return e; }
 
   /* ------------------------------------------------------------------ */
   /* carga perezosa                                                      */
   /* ------------------------------------------------------------------ */
   const pending = {};
   function script(url) {
-    return pending[url] || (pending[url] = new Promise((ok, fail) => {
+    return pending[url] || (pending[url] = new Promise((ok, fail_) => {
       const s = document.createElement('script');
       s.src = url; s.async = true;
       s.onload = ok;
-      s.onerror = () => { delete pending[url]; s.remove(); fail(new Error(NET)); };
+      s.onerror = () => { delete pending[url]; s.remove(); fail_(fail('net')); };
       document.head.appendChild(s);
     }));
   }
@@ -48,8 +50,8 @@
   const ttf = {};
   function dejavu(variant) {
     return ttf[variant] || (ttf[variant] = fetch(LIB.dejavu + variant + '.ttf')
-      .then(r => { if (!r.ok) throw new Error(NET); return r.arrayBuffer(); })
-      .catch(e => { delete ttf[variant]; throw e.message === NET ? e : new Error(NET); }));
+      .then(r => { if (!r.ok) throw fail('net'); return r.arrayBuffer(); })
+      .catch(() => { delete ttf[variant]; throw fail('net'); }));
   }
 
   /* ------------------------------------------------------------------ */
@@ -140,9 +142,6 @@
   /* ------------------------------------------------------------------ */
   /* PNG                                                                 */
   /* ------------------------------------------------------------------ */
-  const TOO_BIG = 'El mapa es demasiado grande para un PNG; usa el PDF o el SVG.';
-  const TAINTED = 'Tu navegador no deja exportar el PNG; prueba con Chrome, Edge o Firefox.';
-
   async function rasterize(r, pad, s) {
     const b = box(r, pad);
     const W = Math.round(b.w * s), H = Math.round(b.h * s);
@@ -159,7 +158,7 @@
     try {
       return await new Promise(ok => cv.toBlob(ok, 'image/png'));
     } catch (e) {
-      throw new Error(TAINTED);
+      throw fail('tainted');
     }
   }
 
@@ -174,7 +173,7 @@
       const blob = await rasterize(r, pad, s);
       if (blob) return blob;
     }
-    throw new Error(TOO_BIG);
+    throw fail('tooBig');
   }
 
   /* ------------------------------------------------------------------ */
@@ -447,12 +446,10 @@
     try {
       src = await L.PDFDocument.load(bytes, {updateMetadata: false});
     } catch (e) {
-      throw new Error(/encrypt/i.test(String(e && e.message))
-        ? 'Ese PDF está protegido: quítale la contraseña y vuelve a intentar.'
-        : 'No pude leer ese PDF.');
+      throw fail(/encrypt/i.test(String(e && e.message)) ? 'protected' : 'unreadable');
     }
     const n = src.getPageCount();
-    if (!n) throw new Error('Ese PDF no tiene páginas.');
+    if (!n) throw fail('noPages');
 
     const out = await L.PDFDocument.create();
     out.setProducer('markmap2pdf');
@@ -495,9 +492,6 @@
   /* El archivo del REPL trae su propio markmap ya armado. Se abre en un
      iframe aislado (sin acceso a esta pagina) y un pequeno script le pide
      el arbol del mapa -con sus colores- para dibujarlo aqui como siempre. */
-  const NO_MAP = 'No encontré ningún mapa en ese HTML. Asegúrate de que sea el ' +
-    'archivo de "Download as interactive HTML" del REPL de markmap.';
-
   function probe() {
     var tries = 0;
     (function look() {
@@ -520,7 +514,7 @@
   }
 
   function readRepl(html) {
-    return new Promise((ok, fail) => {
+    return new Promise((ok, no) => {
       const f = document.createElement('iframe');
       f.setAttribute('sandbox', 'allow-scripts');
       f.setAttribute('aria-hidden', 'true');
@@ -538,16 +532,16 @@
       const on = e => {
         if (e.source !== f.contentWindow || !e.data) return;
         if (e.data.mmTree) end(ok, e.data.mmTree);
-        else if (e.data.mmError) end(fail, new Error(NO_MAP));
+        else if (e.data.mmError) end(no, fail('noRepl'));
       };
-      const timer = setTimeout(() => end(fail, new Error(NO_MAP)), 25000);
+      const timer = setTimeout(() => end(no, fail('noRepl')), 25000);
       addEventListener('message', on);
       document.body.appendChild(f);
     });
   }
 
   global.Motor = {
-    render, forget, svg, png, pdf, merge, readRepl, pdfjs,
+    render, forget, svg, png, pdf, merge, readRepl, pdfjs, fail,
     // adelantar la descarga de lo que se va a necesitar (al pasar el raton
     // por un boton, al soltar la tarea...) sin bloquear nada
     preload(kind) {

@@ -29,6 +29,15 @@ function mapOpts(res){
    si no del editor. `key` identifica el dibujo: si no cambia, el motor
    reutiliza el que ya tiene en vez de volver a dibujarlo. */
 function hasMap(){ return !!replTree || !!md.value.trim(); }
+/* Si pegaron la respuesta de una IA con todo y las marcas del bloque de
+   codigo (```markdown ... ```), markmap haria un solo nodo con codigo: se
+   quitan cuando envuelven TODO el texto. */
+function mdText(){
+  const m = /^\s*(`{3,}|~{3,})[^\n]*\n([\s\S]*?)\n\s*\1\s*$/.exec(md.value);
+  return m ? m[2] : md.value;
+}
+// mensaje de error en el idioma de la pagina
+function errText(e){ return e && e.code ? t('err.' + e.code) : (e && e.message) || t('err.generic'); }
 function source(){
   const air_ = `${air('spacing')}:${air('gap')}`;
   if (replTree){
@@ -36,15 +45,15 @@ function source(){
     o.color = n => (n.payload && n.payload.__c) || base(n);   // sus colores
     return {root: structuredClone(replTree), opts: o, key: `html:${replId}:${air_}`};
   }
-  const res = T.transform(md.value);
-  return {root: res.root, opts: mapOpts(res), key: `md:${air_}:${md.value}`};
+  const text = mdText(), res = T.transform(text);
+  return {root: res.root, opts: mapOpts(res), key: `md:${air_}:${text}`};
 }
 function countNodes(n){ return 1 + (n.children || []).reduce((a, c) => a + countNodes(c), 0); }
 
 async function preview(){
   if (mapFile && !replTree) return;         // todavia leyendo el .html
   if (!hasMap()){
-    $('#pvInfo').textContent = 'Escribe tu mapa';
+    $('#pvInfo').textContent = t('pv.empty');
     $('#pvSize').textContent = '';
     return;
   }
@@ -56,11 +65,11 @@ async function preview(){
     await mm.setData(root);
     await mm.fit();
     const n = replTree ? countNodes(replTree)
-      : (md.value.match(/^\s*(#{1,6}\s|[-*+]\s)/gm) || []).length;
-    $('#pvInfo').textContent = n ? `${n} nodos` : 'Mapa vacío';
+      : (mdText().match(/^\s*(#{1,6}\s|[-*+]\s)/gm) || []).length;
+    $('#pvInfo').textContent = n ? t('pv.nodes', {n}) : t('pv.noNodes');
     await fitPaper();
     renderMini();
-  }catch(e){ $('#pvInfo').textContent = 'Markdown no válido'; }
+  }catch(e){ $('#pvInfo').textContent = t('pv.invalid'); }
 }
 function renderMini(){
   if (!mapCard) return;
@@ -113,7 +122,7 @@ async function fitPaper(){
     paper.style.height = Math.max(28, Math.round(sz.h * k)) + 'px';
   }
   $('#pvSize').textContent =
-    `hoja ${sz.w} × ${sz.h} px · ${(sz.w/96).toFixed(1)}″ × ${(sz.h/96).toFixed(1)}″`;
+    t('pv.sheet', {w: sz.w, h: sz.h, wi: (sz.w/96).toFixed(1), hi: (sz.h/96).toFixed(1)});
   await new Promise(r => requestAnimationFrame(r));
   await recenter();
 }
@@ -139,8 +148,8 @@ function lens(){
 }
 function hint(){
   $('#pvHint').textContent =
-    pvCard.classList.contains('inspect') ? 'acercado · centra para ver la hoja' :
-    pvCard.classList.contains('big')     ? 'Esc para salir' : '';
+    pvCard.classList.contains('inspect') ? t('pv.zoomed') :
+    pvCard.classList.contains('big')     ? t('pv.esc') : '';
 }
 addEventListener('resize', fitPaper);
 $('#pad').addEventListener('input', fitPaper);
@@ -164,9 +173,14 @@ function big(on){
   pvCard.classList.toggle('big', on);
   document.body.classList.toggle('big-on', on);
   $('#scrim').classList.toggle('hidden', !on);
-  $('#zBig').title = on ? 'Volver al tamaño normal (Esc)' : 'Ver el mapa en grande';
+  bigTitle();
   hint();
   requestAnimationFrame(fitPaper);
+}
+function bigTitle(){
+  const k = pvCard.classList.contains('big') ? 'pv.small' : 'pv.big';
+  $('#zBig').title = t(k);
+  $('#zBig').setAttribute('aria-label', t(k));
 }
 $('#zBig').onclick = () => big(!pvCard.classList.contains('big'));
 $('#scrim').onclick = () => big(false);
@@ -194,7 +208,7 @@ addEventListener('resize', movePill);
 /* ══════════════ archivos ══════════════ */
 function setMap(f){
   if (/\.(md|markdown|txt)$/i.test(f.name)){
-    f.text().then(t => { md.value = t; segBtns[0].click(); preview(); refresh(); });
+    f.text().then(txt => { md.value = txt; segBtns[0].click(); preview(); refresh(); });
     return;
   }
   mapFile = f;
@@ -205,7 +219,7 @@ function setMap(f){
   segBtns[1].click();
   refresh();
   const id = ++replId;
-  $('#pvInfo').textContent = 'Leyendo el archivo…';
+  $('#pvInfo').textContent = t('pv.readingFile');
   f.text().then(Motor.readRepl).then(tree => {
     if (id !== replId) return;              // ya subieron otro
     replTree = tree;
@@ -213,7 +227,7 @@ function setMap(f){
   }).catch(e => {
     if (id !== replId) return;
     clearMap();
-    say(e.message, 'err');
+    say(errText(e), 'err');
   });
 }
 function clearMap(){
@@ -226,7 +240,7 @@ function clearMap(){
 async function setDoc(f){
   docFile = f;
   $('#docName').textContent = f.name;
-  $('#docSub').textContent = 'leyendo…';
+  $('#docSub').textContent = t('doc.reading');
   $('#docBox').classList.remove('hidden');
   $('#dropDoc').classList.add('hidden');
   refresh();
@@ -234,21 +248,23 @@ async function setDoc(f){
   try{
     const pdfjsLib = await Motor.pdfjs();
     const pdf = await pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise
-      .catch(() => { throw new Error('No pude leer ese PDF'); });
+      .catch(() => { throw Motor.fail('unreadable'); });
     const pages = pdf.numPages;
     const v = (await pdf.getPage(1)).getViewport({scale:1});
     const [w, h] = [v.width, v.height];
     docPages = pages; buildStrip(pages);
     paintThumbs(pdf);
-    $('#docSub').textContent =
-      `${pages} página${pages===1?'':'s'} · ${Math.round(w/72*2.54)}×${Math.round(h/72*2.54)} cm`;
+    docInfo = {n: pages, w: Math.round(w/72*2.54), h: Math.round(h/72*2.54)};
+    $('#docSub').textContent = docSubText();
   }catch(e){
-    $('#docSub').textContent = e.message || 'No pude leer ese PDF';
+    $('#docSub').textContent = errText(e);
     docFile = null; refresh();
   }
 }
+let docInfo = null;
+function docSubText(){ return t(docInfo.n === 1 ? 'doc.pages1' : 'doc.pagesN', docInfo); }
 function clearDoc(){
-  docFile = null; docPages = 0; mapCard = null; mini = null; ph = null; drag = null;
+  docFile = null; docPages = 0; docInfo = null; mapCard = null; mini = null; ph = null; drag = null;
   strip.innerHTML = '';
   $('#docBox').classList.add('hidden');
   $('#dropDoc').classList.remove('hidden');
@@ -269,7 +285,7 @@ function buildStrip(pages){
     const c = document.createElement('div');
     c.className = 'pcard';
     c.style.animationDelay = (i * .035) + 's';
-    c.innerHTML = `<div class="thumb"><div class="ph">${i}</div></div><div class="lbl">Página ${i}</div>`;
+    c.innerHTML = `<div class="thumb"><div class="ph">${i}</div></div><div class="lbl" data-page="${i}">${t('strip.page', {i})}</div>`;
     strip.appendChild(c);
   }
   mapCard = document.createElement('div');
@@ -279,9 +295,9 @@ function buildStrip(pages){
     `<div class="thumb"><svg class="mini"></svg></div>
      <div class="lbl">
        <svg class="grip" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>
-       TU MAPA
+       <span data-i18n="strip.map">${t('strip.map')}</span>
      </div>
-     <div class="hnd">arrástrame</div>`;
+     <div class="hnd" data-i18n="strip.drag">${t('strip.drag')}</div>`;
   mapCard.tabIndex = 0;
   strip.appendChild(mapCard);
 
@@ -400,9 +416,9 @@ function onUp(){
 function mapIndex(){ return [...strip.children].indexOf(ph || mapCard); }
 function updateOrder(){
   const i = mapIndex(), lbl = $('#orderLbl');
-  lbl.textContent = i === 0 ? 'al inicio'
-    : i === docPages ? 'al final'
-    : `como página ${i + 1} de ${docPages + 1}`;
+  lbl.textContent = i === 0 ? t('order.start')
+    : i === docPages ? t('order.end')
+    : t('order.at', {i: i + 1, n: docPages + 1});
   lbl.classList.add('bump'); setTimeout(() => lbl.classList.remove('bump'), 220);
 }
 
@@ -433,9 +449,9 @@ function clean(n, fallback){
 }
 function mapName(){
   const n = $('#name').value.trim(); if (n) return n;
-  const h = md.value.match(/^#\s+(.+)$/m); if (h && !mapFile) return h[1].trim().slice(0,60);
+  const h = mdText().match(/^#\s+(.+)$/m); if (h && !mapFile) return h[1].trim().slice(0,60);
   if (mapFile) return mapFile.name.replace(/\.[^.]+$/,'');
-  return 'mapa';
+  return t('name.map');
 }
 function baseName(){
   const n = $('#name').value.trim(); if (n) return n;
@@ -461,23 +477,23 @@ function save(blob, name){
 // `make` arma el archivo y devuelve [blob, nombre]
 async function go(label, make){
   if (busy) return;
-  if (mapFile && !replTree) return say('Espera, todavía estoy leyendo el archivo', 'err');
-  if (!hasMap()) return say('Escribe o sube un mapa primero', 'err');
+  if (mapFile && !replTree) return say(t('st.wait'), 'err');
+  if (!hasMap()) return say(t('st.noMap'), 'err');
   lock(true); say(`<span class="spin"></span>${label}`);
   try{
     await new Promise(r => requestAnimationFrame(r));   // que se vea el aviso
     const [blob, name] = await make();
     save(blob, name);
-    say(TICK + 'Listo', 'ok');
+    say(TICK + t('st.done'), 'ok');
     const id = sayId;
     setTimeout(() => { if (!busy && sayId === id) say(''); }, 3500);
-  }catch(e){ console.error(e); say(e.message || 'Algo salió mal', 'err'); }
+  }catch(e){ console.error(e); say(errText(e), 'err'); }
   finally{ lock(false); }
 }
 const PDF = 'application/pdf';
 function onlyMap(fmt){
-  const name = clean(mapName(), 'mapa');
-  go(`Generando ${fmt.toUpperCase()}…`, async () => {
+  const name = clean(mapName(), t('name.map'));
+  go(t('st.making', {fmt: fmt.toUpperCase()}), async () => {
     const r = await Motor.render(source());
     if (fmt === 'svg') return [Motor.svg(r, pad()), `${name}.svg`];
     if (fmt === 'png') return [await Motor.png(r, pad(), +$('#scale').value || 3), `${name}.png`];
@@ -488,14 +504,14 @@ function onlyMap(fmt){
 document.querySelectorAll('.bar [data-fmt]').forEach(b => b.onclick = () => onlyMap(b.dataset.fmt));
 $('#btnMain').onclick = () => {
   if (!docFile) return onlyMap('pdf');
-  const name = clean(baseName(), 'tarea'), file = docFile, at = mapIndex();
-  go('Uniendo PDF…', async () => {
+  const name = clean(baseName(), t('name.doc')), file = docFile, at = mapIndex();
+  go(t('st.merging'), async () => {
     const r = await Motor.render(source());
-    const map = await Motor.pdf(r, pad(), clean(mapName(), 'mapa'));
+    const map = await Motor.pdf(r, pad(), clean(mapName(), t('name.map')));
     const bytes = await Motor.merge(map, await file.arrayBuffer(), {
       at, fit: $('#fit').value, margin: num('#margin', 36, 200),
     });
-    return [new Blob([bytes], {type: PDF}), `${name} con mapa.pdf`];
+    return [new Blob([bytes], {type: PDF}), `${t('name.merged', {name})}.pdf`];
   });
 };
 // en cuanto alguien apunta a un boton de PDF, se va bajando pdf-lib
@@ -504,10 +520,37 @@ $('#btnMain').onclick = () => {
     $(sel).addEventListener(ev, () => Motor.preload('pdf'), {once: true, passive: true})));
 
 function refresh(){
-  $('#btnMain').textContent = docFile ? 'Descargar tarea + mapa' : 'Descargar PDF';
+  $('#btnMain').textContent = docFile ? t('bar.merge') : t('bar.pdf');
   $('#btnPdf').classList.toggle('hidden', !docFile);
   $('#name').placeholder = docFile ? baseName() : mapName();
 }
+
+/* ══════════════ idioma ══════════════ */
+document.querySelectorAll('.lang button').forEach(b => b.onclick = () => I18N.set(b.dataset.lang));
+// i18n.js ya cambio los textos fijos (y el ejemplo del editor, si nadie lo
+// toco); aqui se rehace lo que la pagina arma sobre la marcha
+I18N.onChange(() => {
+  movePill();                                   // las pestanas cambian de ancho
+  refresh(); hint(); bigTitle(); say('');
+  strip.querySelectorAll('.lbl[data-page]').forEach(l => { l.textContent = t('strip.page', {i: l.dataset.page}); });
+  if (mapCard) updateOrder();
+  if (docFile && docInfo) $('#docSub').textContent = docSubText();
+  preview();                                    // nodos, hoja y el ejemplo
+});
+
+/* ══════════════ prompt para IA ══════════════ */
+$('#copyPrompt').onclick = async () => {
+  const btn = $('#copyPrompt'), lbl = btn.querySelector('span'), text = t('guide.prompt');
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {                                   // sin permiso: a la antigua
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  }
+  btn.classList.add('ok'); lbl.textContent = t('guide.copied');
+  clearTimeout(btn._done);
+  btn._done = setTimeout(() => { btn.classList.remove('ok'); lbl.textContent = t('guide.copy'); }, 1800);
+};
 
 // la pildora del selector se coloca sin animarse la primera vez
 $('#pill').style.transition = 'none';

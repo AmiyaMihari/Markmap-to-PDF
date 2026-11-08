@@ -31,6 +31,12 @@ con el Python que ya trae el sistema). Desde ahí:
   tarjeta seleccionada).
 * Descarga **el PDF unido**, o solo el mapa en **PDF / PNG / SVG**.
 
+Debajo del título, **¿Cómo se usa?** explica en corto el formato que entiende el
+mapa y trae un prompt listo para pedirle el mapa a una IA (ChatGPT, Claude,
+Gemini…). Si pegas su respuesta con todo y las marcas ```` ``` ```` del bloque de
+código, la página las quita sola. Arriba a la derecha puedes cambiar la interfaz
+a **inglés**; se recuerda para la próxima vez.
+
 La vista previa es **la hoja real**: toma la proporción exacta del PDF que vas a
 obtener y te dice cuánto mide, así que ves de antemano si tu mapa sale ancho o
 alargado. Abajo a la derecha tiene cuatro botones:
@@ -195,6 +201,7 @@ entregas la tarea ya en PDF.
 |---|---|
 | `docs/index.html` | la interfaz |
 | `docs/app.js` | lo que hace la interfaz: vista previa, archivos, descargas |
+| `docs/i18n.js` | los textos en español e inglés |
 | `docs/motor.js` | el exportador en el navegador: SVG, PNG, PDF y unir con la tarea |
 | `docs/spacing.js` | el aire entre ramas (lo comparten la página y el CLI) |
 | `markmap2pdf.py` | el CLI (renderiza y recorta con Chromium) |
