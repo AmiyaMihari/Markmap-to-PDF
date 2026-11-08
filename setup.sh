@@ -5,6 +5,7 @@
 #   bash setup.sh
 #
 # Crea .venv, instala requirements.txt y descarga Chromium para Playwright.
+# Solo hace falta para el CLI (markmap2pdf.py): la interfaz web no lo usa.
 # Es idempotente: puedes correrlo las veces que quieras.
 # ---------------------------------------------------------------------------
 set -euo pipefail

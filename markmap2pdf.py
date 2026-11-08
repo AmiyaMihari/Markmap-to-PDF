@@ -17,10 +17,12 @@ Se puede usar de dos formas:
          python markmap2pdf.py mapa.md
          python markmap2pdf.py ~/Downloads/markmap.html
 
-  2. Como modulo, desde la interfaz web (app.py):
+  2. Como modulo, desde otro script:
 
          out = await render_to_bytes(browser, md_text, "md")
          out["pdf"], out["png"], out["svg"], out["width"], out["height"]
+
+La interfaz web (docs/) hace lo mismo pero completa en el navegador.
 
 Instalacion (una sola vez):
        bash setup.sh
@@ -57,88 +59,12 @@ class MarkmapError(RuntimeError):
 
 # --------------------------------------------------------------------------- #
 # Aire entre ramas: parche que corre DENTRO de la pagina, sobre markmap.
-# Lo usan por igual el exportador y la vista previa del navegador (app.py lo
-# sirve en /spacing.js), asi que lo que ves es lo que sale en el PDF.
+# Vive en docs/spacing.js y lo comparten este CLI y la version web, asi que el
+# mapa sale igual en los dos.
 # --------------------------------------------------------------------------- #
-SPACING_JS = r"""
-/* markmap acomoda el arbol lo mas apretado que puede: entre dos nodos de
-   ramas distintas solo deja `spacingVertical * 2` px, y los mapas grandes
-   salen amontonados.
-
-   Este parche corre DESPUES del layout de markmap (`_relayout`) y separa las
-   ramas principales -las hijas de la raiz- moviendo cada subarbol completo,
-   la mitad hacia arriba y la mitad hacia abajo para que el mapa siga
-   centrado en la raiz. Como solo las ALEJA, nunca se encima nada.
-
-   Opciones que entiende, ademas de las de markmap:
-     branchGap        px extra entre ramas principales
-   (`spacingVertical` es de markmap y afecta a todos los niveles.)          */
-(function (global) {
-  // Recorre el subarbol igual que el layout: lo que esta plegado no cuenta,
-  // sus hijos conservan coordenadas viejas y no hay que moverlos.
-  function walk(node, fn) {
-    fn(node);
-    if (node.payload && node.payload.fold) return;
-    (node.children || []).forEach(function (child) { walk(child, fn); });
-  }
-
-  function wrap(base) {
-    return function () {
-      base.call(this);
-
-      var gap = +((this.options || {}).branchGap) || 0;
-      var root = this.state && this.state.data;
-      if (gap <= 0 || !root || (root.payload && root.payload.fold)) return;
-
-      var kids = (root.children || []).filter(function (k) {
-        return k.state && k.state.rect;
-      });
-      if (kids.length < 2) return;
-
-      kids.forEach(function (kid, i) {
-        var dy = (i - (kids.length - 1) / 2) * gap;
-        if (!dy) return;
-        walk(kid, function (n) {
-          if (n.state && n.state.rect) n.state.rect.y += dy;
-        });
-      });
-
-      // La caja del mapa crecio, y markmap la usa para encuadrar y exportar.
-      var x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
-      walk(root, function (n) {
-        var r = n.state && n.state.rect;
-        if (!r) return;
-        x1 = Math.min(x1, r.x);              y1 = Math.min(y1, r.y);
-        x2 = Math.max(x2, r.x + r.width);    y2 = Math.max(y2, r.y + r.height);
-      });
-      this.state.rect = {x1: x1, y1: y1, x2: x2, y2: y2};
-    };
-  }
-
-  function patch(ns) {
-    var proto = ns && ns.Markmap && ns.Markmap.prototype;
-    if (!proto || typeof proto._relayout !== 'function') return false;
-    if (!proto.__branchGap) {
-      proto._relayout = wrap(proto._relayout);
-      proto.__branchGap = true;
-    }
-    return true;
-  }
-
-  global.mmSpacing = {
-    patch: patch,
-    /* Opciones listas para Markmap.create() o setOptions(). */
-    opts: function (spacing, gap, base) {
-      var o = Object.assign({}, base);
-      if (spacing != null && spacing !== '') o.spacingVertical = +spacing;
-      o.branchGap = +gap || 0;
-      return o;
-    }
-  };
-
-  patch(global.markmap);   // si markmap ya cargo, queda parcheado aqui mismo
-})(window);
-"""
+SPACING_JS = (pathlib.Path(__file__).parent / "docs" / "spacing.js").read_text(
+    encoding="utf-8"
+)
 
 
 # --------------------------------------------------------------------------- #

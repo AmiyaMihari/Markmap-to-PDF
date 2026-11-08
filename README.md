@@ -4,30 +4,25 @@ Convierte tus mapas de [markmap](https://markmap.js.org/repl) a **PDF de una sol
 
 Ya no necesitas: captura de pantalla, Sejda, ni recortar a mano.
 
+**Úsalo en línea, sin instalar nada:** <https://amiyamihari.github.io/Markmap-to-PDF/>
+
 ![interfaz](docs/interfaz.png)
-
----
-
-## Instalación (una sola vez)
-
-```bash
-git clone https://github.com/AmiyaMihari/Markmap-to-PDF.git
-cd Markmap-to-PDF
-bash setup.sh
-```
-
-`setup.sh` crea el entorno virtual en `.venv/`, instala `requirements.txt` y descarga
-el Chromium que usa Playwright (~115 MB). Es idempotente: si algo se rompe, vuelve a correrlo.
 
 ---
 
 ## Uso: la interfaz web
 
+La interfaz corre **completa en el navegador**: no hay servidor ni nada que
+instalar. Ábrela en <https://amiyamihari.github.io/Markmap-to-PDF/>, o en tu compu:
+
 ```bash
+git clone https://github.com/AmiyaMihari/Markmap-to-PDF.git
+cd Markmap-to-PDF
 bash start.sh
 ```
 
-Se abre solo en <http://127.0.0.1:8765>. Desde ahí:
+Se abre sola en <http://127.0.0.1:8765> (`start.sh` solo sirve la carpeta `docs/`
+con el Python que ya trae el sistema). Desde ahí:
 
 * **Escribe tu markdown** y ve el mapa en vivo mientras escribes (o arrastra un `.md`
   o el `.html` que descargas del REPL).
@@ -60,11 +55,16 @@ puedes moverlo:
 Ponlos en `5` y `0` si prefieres el mapa tal como lo dibuja markmap. Lo que ves
 en la vista previa es lo que sale en el PDF: es el mismo código.
 
+Además, cuando un nodo tiene **un solo hijo** (lo típico: un término y su
+definición), la línea que los une se acorta. markmap deja a todos los hijos a la
+misma distancia, y con varios hijos ese espacio lo llenan las curvas, pero con uno
+solo quedaba una recta larga y el texto se veía lejísimos. Las curvas no cambian.
+
 Puedes soltar los archivos en cualquier parte de la ventana: el `.pdf` se toma como
 tu documento y el `.md` / `.html` como el mapa.
 
-**Nada se guarda en disco.** Todo pasa en memoria y solo baja el archivo final,
-así que no se te acumulan archivos sueltos en la carpeta.
+**Todo pasa en tu navegador.** Los archivos no salen de tu compu y solo baja el
+archivo final, así que no se te acumulan archivos sueltos en la carpeta.
 
 En VS Code: `Ctrl+Shift+B` → "Abrir la interfaz web".
 
@@ -80,7 +80,15 @@ En VS Code: `Ctrl+Shift+B` → "Abrir la interfaz web".
 
 ## Uso: línea de comandos
 
-Sigue disponible si lo prefieres, o para procesar varios mapas de golpe:
+Sigue disponible si lo prefieres, o para procesar varios mapas de golpe. Este sí
+necesita instalar algo, una sola vez:
+
+```bash
+bash setup.sh
+```
+
+`setup.sh` crea el entorno virtual en `.venv/`, instala `requirements.txt` y descarga
+el Chromium que usa Playwright (~115 MB). Es idempotente: si algo se rompe, vuelve a correrlo.
 
 ```bash
 python markmap2pdf.py mapa.md
@@ -153,16 +161,22 @@ Luego `source ~/.bashrc`.
 
 ## Cómo funciona el recorte
 
-Dentro de un Chromium headless, el script:
+Tanto la página como el CLI dibujan el mapa aparte, a escala 1 y sin zoom, y luego:
 
-1. elimina `.mm-toolbar` (la marquita de agua) y cualquier UI,
-2. borra el `transform` de zoom que d3 aplica al `<g>`,
-3. calcula el `getBBox()` real del contenido y reescribe el `viewBox` con ese tamaño + margen,
-4. imprime a PDF con `@page size` idéntico al contenido → **una página, cero márgenes que recortar**.
+1. borran el `transform` de zoom que d3 aplica al `<g>`,
+2. calculan el `getBBox()` real del contenido y reescriben el `viewBox` con ese tamaño + margen,
+3. exportan con una hoja idéntica al contenido → **una página, cero márgenes que recortar**.
 
 El PDF sale vectorial: el texto se puede seleccionar y no pixelea al hacer zoom.
 Al unirlo con tu tarea, el mapa se escala y centra en la hoja **sin perder calidad**
 (sigue siendo vectorial, no se convierte a imagen).
+
+En la página, el PDF lo arma `docs/motor.js` con [pdf-lib](https://pdf-lib.js.org/):
+lee del navegador dónde quedó cada letra y la escribe como texto real. Usa
+Helvetica y Courier (vienen con cualquier lector de PDF) y, solo si el mapa trae
+flechas, letras griegas u otros símbolos, descarga la fuente DejaVu Sans para
+ellos. Si el mapa trae emojis o imágenes, que ninguna fuente de PDF tiene, ese PDF
+sale como imagen a 288 dpi para que no se pierda nada.
 
 ---
 
@@ -179,18 +193,24 @@ entregas la tarea ya en PDF.
 
 | archivo | qué es |
 |---|---|
-| `markmap2pdf.py` | el motor (renderizar + recortar) y el CLI |
-| `app.py` | servidor de la interfaz web (FastAPI) |
-| `static/index.html` | la interfaz |
-| `setup.sh` / `start.sh` | instalar / arrancar |
+| `docs/index.html` | la interfaz |
+| `docs/app.js` | lo que hace la interfaz: vista previa, archivos, descargas |
+| `docs/motor.js` | el exportador en el navegador: SVG, PNG, PDF y unir con la tarea |
+| `docs/spacing.js` | el aire entre ramas (lo comparten la página y el CLI) |
+| `markmap2pdf.py` | el CLI (renderiza y recorta con Chromium) |
+| `start.sh` | abre la interfaz en local |
+| `setup.sh` | instala lo que necesita el CLI |
 | `ejemplo.md` | mapa de prueba |
+
+La versión anterior, con la interfaz servida por Python (FastAPI + Chromium),
+sigue en la rama [`version-python`](https://github.com/AmiyaMihari/Markmap-to-PDF/tree/version-python).
 
 ---
 
 ## Google Colab
 
-Solo si necesitas correrlo en otra máquina. La instalación de Chromium (~1–2 min)
-se repite **cada sesión** y la interfaz web no aplica ahí; usa el CLI.
+Solo si necesitas el CLI en otra máquina. La instalación de Chromium (~1–2 min)
+se repite **cada sesión**.
 
 ```python
 !pip -q install playwright

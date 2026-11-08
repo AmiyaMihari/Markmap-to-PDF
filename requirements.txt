@@ -1,4 +1,6 @@
-# markmap2pdf — dependencias
+# markmap2pdf — dependencias del CLI (markmap2pdf.py)
+#
+# La interfaz web (docs/) no necesita nada de esto: corre en el navegador.
 #
 #   bash setup.sh          <- hace todo esto por ti
 #
@@ -9,9 +11,3 @@
 #   playwright install chromium     # <- descarga el navegador (no va en pip)
 #
 playwright==1.62.0
-
-# interfaz web (app.py)
-fastapi==0.141.1
-uvicorn[standard]==0.52.4
-python-multipart==0.0.32
-pypdf==6.16.1
