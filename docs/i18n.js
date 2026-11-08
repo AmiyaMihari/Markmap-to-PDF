@@ -13,19 +13,21 @@
   'use strict';
 
   const ES = {
-    'hero.sub': 'Tu mapa mental, recortado y con fondo blanco. Solo, o dentro de tu tarea.',
+    'hero.sub': 'Tu mapa, recortado y con fondo blanco. Solo, o dentro de tu tarea.',
     'lang.label': 'Idioma',
 
     'mode.label': 'Tipo de mapa',
-    'mode.mind': 'Mapa mental',
+    'mode.synoptic': 'Cuadro sinóptico',
     'mode.concept': 'Mapa conceptual',
-    'kind.mind': 'mapa mental',
+    'mode.mind': 'Mapa mental',
+    'kind.synoptic': 'cuadro sinóptico',
     'kind.concept': 'mapa conceptual',
+    'kind.mind': 'mapa mental',
 
     'guide.title': '¿Cómo se usa?',
     'guide.hint': 'el formato del mapa y un prompt para IA',
     'guide.format': 'El formato',
-    'guide.formatIntro': 'Cada línea es un nodo, y el mismo texto sirve para los dos tipos de mapa. Lo que pones al inicio decide dónde va:',
+    'guide.formatIntro': 'Cada línea es un nodo, y el mismo texto sirve para los tres tipos de mapa. Lo que pones al inicio decide dónde va:',
     'guide.h1': 'el tema central (solo uno)',
     'guide.h2': 'las ramas principales',
     'guide.h3': 'los subtemas de cada rama',
@@ -161,19 +163,21 @@
   };
 
   const EN = {
-    'hero.sub': 'Your mind map, cropped and on a white background. On its own, or inside your assignment.',
+    'hero.sub': 'Your map, cropped and on a white background. On its own, or inside your assignment.',
     'lang.label': 'Language',
 
     'mode.label': 'Map type',
-    'mode.mind': 'Mind map',
+    'mode.synoptic': 'Brace map',
     'mode.concept': 'Concept map',
-    'kind.mind': 'mind map',
+    'mode.mind': 'Mind map',
+    'kind.synoptic': 'brace map (synoptic chart)',
     'kind.concept': 'concept map',
+    'kind.mind': 'mind map',
 
     'guide.title': 'How does it work?',
     'guide.hint': 'the map format and a prompt for AI',
     'guide.format': 'The format',
-    'guide.formatIntro': 'Each line is a node, and the same text works for both map types. What you put at the start decides where it goes:',
+    'guide.formatIntro': 'Each line is a node, and the same text works for all three map types. What you put at the start decides where it goes:',
     'guide.h1': 'the central topic (only one)',
     'guide.h2': 'the main branches',
     'guide.h3': 'the subtopics of each branch',

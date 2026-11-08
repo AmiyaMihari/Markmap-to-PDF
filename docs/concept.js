@@ -57,7 +57,7 @@
 
   class ConceptMap {
     static create(svg, opts, data) {
-      const cm = new ConceptMap(svg, opts);
+      const cm = new this(svg, opts);       // this: ConceptMap o MindMap
       if (data) cm.setData(data).then(() => cm.fit());
       return cm;
     }
@@ -66,9 +66,16 @@
       const el = typeof svg === 'string' ? document.querySelector(svg) : (svg.node ? svg.node() : svg);
       this.svg = global.d3.select(el);
       this.svg.selectAll('*').remove();
-      el.classList.add('cm');             // agrega, no reemplaza: la miniatura es svg.mini
-      this.svg.append('style').text(CSS);
-      this.g = this.svg.append('g').attr('class', 'cm-g');
+      /* markmap (cuadro sinoptico) le pone al <svg> un 'wheel' propio que
+         desplaza el mapa, y su destroy() no lo quita. Si se queda, cada giro
+         de la rueda aqui empuja el mapa hacia abajo y el zoom "salta" fuera
+         de la vista. El zoom de este mapa usa 'wheel.zoom' y no se toca. */
+      this.svg.on('wheel', null);
+      // agrega, no reemplaza: la miniatura es svg.mini. `cls` y `css` son de
+      // cada tipo de mapa (mindmap.js hereda de aqui y cambia el dibujo)
+      el.classList.add(this.constructor.cls);
+      this.svg.append('style').text(this.constructor.css);
+      this.g = this.svg.append('g').attr('class', this.constructor.cls + '-g');
       this.state = {data: null, rect: {x1: 0, y1: 0, x2: 0, y2: 0}};
       this.zoom = global.d3.zoom().scaleExtent([0.02, 8])
         .on('zoom', e => this.g.attr('transform', e.transform));
@@ -105,7 +112,7 @@
     destroy() {
       this.svg.on('.zoom', null);
       this.svg.selectAll('*').remove();
-      this.svg.node().classList.remove('cm');
+      this.svg.node().classList.remove(this.constructor.cls);
     }
 
     _draw() {
@@ -337,5 +344,7 @@
     }
   }
 
+  ConceptMap.cls = 'cm';
+  ConceptMap.css = CSS;
   global.ConceptMap = ConceptMap;
 })(window);

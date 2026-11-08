@@ -19,6 +19,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.12/dist/browser/index.js"></script>
 <script defer src="spacing.js"></script>
 <script defer src="concept.js"></script>
+<script defer src="mindmap.js"></script>
 <script defer src="motor.js"></script>
 <script defer src="app.js"></script>
 
@@ -110,7 +111,7 @@ body{
 
 /* ─────────────────────────────  tipo de mapa  ──────────────────────── */
 .modes{
-  position:relative; display:inline-grid; grid-template-columns:1fr 1fr;
+  position:relative; display:inline-grid; grid-template-columns:1fr 1fr 1fr;
   margin:-14px 0 14px; padding:4px; border-radius:13px; background:rgba(120,120,128,.12);
   animation:rise .8s var(--ease) .05s both;
 }
@@ -127,12 +128,19 @@ body{
 }
 .modes button[aria-checked="true"] svg{color:var(--accent)}
 .modes-pill{
-  position:absolute; z-index:0; top:4px; left:4px; width:calc(50% - 4px); height:calc(100% - 8px);
+  position:absolute; z-index:0; top:4px; left:4px; width:calc((100% - 8px) / 3); height:calc(100% - 8px);
   background:var(--solid); border-radius:10px;
   box-shadow:0 1px 3px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
   transition:transform .45s var(--spring);
 }
 .modes[data-active="concept"] .modes-pill{transform:translateX(100%)}
+.modes[data-active="mind"] .modes-pill{transform:translateX(200%)}
+/* en el celular, tres botones no caben con icono: todo el ancho y solo el texto */
+@media(max-width:560px){
+  .modes{display:grid; width:100%}
+  .modes button{padding:9px 6px; font-size:13px; text-align:center}
+  .modes button svg{display:none}
+}
 
 /* ─────────────────────────────  instructivo  ───────────────────────── */
 /* .card.guide: mas fuerte que .card, que viene despues y le pondria relleno */
@@ -517,7 +525,7 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
   <header class="hero">
     <div>
       <h1>markmap <span>→</span> PDF</h1>
-      <p data-i18n="hero.sub">Tu mapa mental, recortado y con fondo blanco. Solo, o dentro de tu tarea.</p>
+      <p data-i18n="hero.sub">Tu mapa, recortado y con fondo blanco. Solo, o dentro de tu tarea.</p>
     </div>
     <div class="lang" role="group" aria-label="Idioma" data-i18n-aria="lang.label" data-active="es">
       <span class="lang-pill"></span>
@@ -526,15 +534,19 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
     </div>
   </header>
 
-  <div class="modes" role="radiogroup" aria-label="Tipo de mapa" data-i18n-aria="mode.label" data-active="mind">
+  <div class="modes" role="radiogroup" aria-label="Tipo de mapa" data-i18n-aria="mode.label" data-active="synoptic">
     <span class="modes-pill"></span>
-    <button type="button" role="radio" data-mode="mind" aria-checked="true">
-      <svg viewBox="0 0 24 24"><circle cx="4.5" cy="12" r="2"/><path d="M6.5 12h3M9.5 12c2.6 0 2.6-6 5.2-6h4.8M9.5 12h10M9.5 12c2.6 0 2.6 6 5.2 6h4.8"/></svg>
-      <span data-i18n="mode.mind">Mapa mental</span>
+    <button type="button" role="radio" data-mode="synoptic" aria-checked="true">
+      <svg viewBox="0 0 24 24"><path d="M8 3.5c-1.8 0-2.3 1-2.3 2.6v2.6c0 1.6-.8 3.3-2.7 3.3 1.9 0 2.7 1.7 2.7 3.3v2.6c0 1.6.5 2.6 2.3 2.6"/><path d="M11.5 6.5h9M11.5 12h9M11.5 17.5h9"/></svg>
+      <span data-i18n="mode.synoptic">Cuadro sinóptico</span>
     </button>
     <button type="button" role="radio" data-mode="concept" aria-checked="false">
       <svg viewBox="0 0 24 24"><rect x="8.5" y="2.5" width="7" height="5" rx="1.2"/><path d="M12 7.5V11M5.5 11h13M5.5 11v3M12 11v3M18.5 11v3"/><rect x="3" y="14" width="5" height="4.5" rx="1"/><rect x="9.5" y="14" width="5" height="4.5" rx="1"/><rect x="16" y="14" width="5" height="4.5" rx="1"/></svg>
       <span data-i18n="mode.concept">Mapa conceptual</span>
+    </button>
+    <button type="button" role="radio" data-mode="mind" aria-checked="false">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><circle cx="4.5" cy="5" r="1.8"/><circle cx="19.5" cy="5" r="1.8"/><circle cx="4.5" cy="19" r="1.8"/><circle cx="19.5" cy="19" r="1.8"/><path d="M9.7 9.8 5.8 6.2M14.3 9.8l3.9-3.6M9.7 14.2l-3.9 3.6M14.3 14.2l3.9 3.6"/></svg>
+      <span data-i18n="mode.mind">Mapa mental</span>
     </button>
   </div>
 

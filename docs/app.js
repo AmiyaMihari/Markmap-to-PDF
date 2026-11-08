@@ -3,12 +3,19 @@ const md = $('#md'), strip = $('#strip'), statusEl = $('#status');
 let mapFile = null, docFile = null, docPages = 0, busy = false, mapCard = null;
 // el arbol del mapa cuando viene de un .html del REPL (si no, sale del editor)
 let replTree = null, replId = 0;
-// 'mind' = mapa mental (markmap, de izquierda a derecha)
-// 'concept' = mapa conceptual (concept.js, de arriba hacia abajo)
-let mode = 'mind';
-try { if (localStorage.getItem('mode') === 'concept') mode = 'concept'; } catch (e) { /* mental */ }
-// el dibujante de cada tipo; los dos se usan igual
-const mapClass = m => m === 'concept' ? ConceptMap : markmap.Markmap;
+// 'synoptic' = cuadro sinoptico (markmap, de izquierda a derecha, como llaves)
+// 'concept'  = mapa conceptual (concept.js, de arriba hacia abajo)
+// 'mind'     = mapa mental (mindmap.js, ramas curvas a ambos lados de la idea central)
+const MODES = ['synoptic', 'concept', 'mind'];
+let mode = 'synoptic';
+try {
+  const saved = localStorage.getItem('mapType');
+  if (MODES.includes(saved)) mode = saved;
+  // antes se guardaba en 'mode', y 'mind' era el de markmap (hoy cuadro sinoptico)
+  else if (localStorage.getItem('mode') === 'concept') mode = 'concept';
+} catch (e) { /* cuadro sinoptico */ }
+// el dibujante de cada tipo; los tres se usan igual
+const mapClass = m => ({concept: ConceptMap, mind: MindMap})[m] || markmap.Markmap;
 
 /* ══════════════ vista previa en vivo ══════════════ */
 const T = new markmap.Transformer();
@@ -559,12 +566,12 @@ function showMode(){
 modesBox.querySelectorAll('button').forEach(b => b.onclick = () => {
   if (b.dataset.mode === mode) return;
   mode = b.dataset.mode;
-  try { localStorage.setItem('mode', mode); } catch (e) { /* no se recuerda */ }
+  try { localStorage.setItem('mapType', mode); } catch (e) { /* no se recuerda */ }
   showMode(); showPrompt(); preview();
 });
 
 /* ══════════════ prompt para IA ══════════════ */
-const promptText = () => t('guide.prompt', {kind: t(mode === 'concept' ? 'kind.concept' : 'kind.mind')});
+const promptText = () => t('guide.prompt', {kind: t('kind.' + mode)});
 function showPrompt(){ $('#aiPrompt').textContent = promptText(); }
 $('#copyPrompt').onclick = async () => {
   const btn = $('#copyPrompt'), lbl = btn.querySelector('span'), text = promptText();

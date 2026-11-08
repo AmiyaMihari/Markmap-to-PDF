@@ -51,26 +51,42 @@ alargado. Abajo a la derecha tiene cuatro botones:
 | **centrar** (la mirita) | vuelve a encuadrar el mapa en la hoja — igual que hacer doble clic sobre él |
 | **ampliar** (las flechas) | el mapa pasa a ocupar la ventana entera, blanco de borde a borde y sin marcos, desde el primer momento; `Esc`, el mismo botón o un clic en el borde para volver |
 
-### Mapa mental o mapa conceptual
+### Cuadro sinóptico, mapa conceptual o mapa mental
 
-Arriba de **¿Cómo se usa?** eliges el tipo de mapa. El mismo texto sirve para los dos:
+Arriba de **¿Cómo se usa?** eliges el tipo de mapa. El mismo texto sirve para los tres:
 
 | tipo | cómo se ve |
 |---|---|
-| **Mapa mental** | de izquierda a derecha, con ramas curvas (el de markmap) |
+| **Cuadro sinóptico** | de izquierda a derecha, con ramas curvas que se abren como llaves (el de markmap) |
 | **Mapa conceptual** | de arriba hacia abajo, con cajas y líneas en ángulo, como un organigrama |
+| **Mapa mental** | la idea central al medio y ramas curvas que se abren a izquierda y derecha |
 
 En el conceptual, cada rama principal lleva su color. Un mapa chico va todo lado a
 lado; si uno grande quedaría más ancho que una hoja, sus grupos se van plegando en
 columnas bajo su caja hasta que la proporción quepa. Las ramas principales siempre
-quedan lado a lado. La elección se recuerda para la próxima vez. El CLI de Python
-solo hace mapas mentales.
+quedan lado a lado.
+
+El mental reparte las ramas a izquierda y derecha según el espacio que necesita
+su contenido. Cada subárbol tiene su propia franja, para evitar nodos encimados
+y conexiones que atraviesen otras ramas. El centro destaca sobre fondo oscuro;
+los temas principales llevan tarjetas redondeadas y una paleta de colores suaves,
+y los detalles se leen sobre fondo blanco. Las conexiones son curvas que se
+adelgazan hacia afuera y los hijos únicos quedan más cerca de su padre.
+El mismo texto da siempre el mismo mapa. En **Ajustes**, *Separación entre ramas*
+aumenta el espacio entre nodos hermanos y la distancia al siguiente nivel;
+*Aire entre ramas principales* agrega separación vertical entre los temas
+del mismo lado. El diseño se conserva al descargar SVG, PNG o PDF vectorial.
+
+![Mapa mental de integración con ramas curvas a ambos lados del centro](docs/mapa-mental.png)
+
+La elección se recuerda para la próxima vez. El CLI de Python solo hace cuadros
+sinópticos.
 
 ### Aire entre ramas
 
-markmap acomoda el árbol lo más apretado que puede y los mapas grandes salen
-amontonados, así que el mapa sale con un poco de aire de fábrica. En **Ajustes**
-puedes moverlo:
+En el **cuadro sinóptico**, markmap acomoda el árbol lo más apretado que puede y
+los mapas grandes salen amontonados, así que el mapa sale con un poco de aire de
+fábrica. En **Ajustes** puedes moverlo:
 
 | ajuste | qué hace |
 |---|---|
@@ -79,6 +95,10 @@ puedes moverlo:
 
 Ponlos en `5` y `0` si prefieres el mapa tal como lo dibuja markmap. Lo que ves
 en la vista previa es lo que sale en el PDF: es el mismo código.
+
+Los mismos controles sirven en los otros modos: en el **conceptual** separan las
+cajas y sus grupos; en el **mental** separan los nodos y las ramas de cada lado,
+como se describe arriba.
 
 Además, cuando un nodo tiene **un solo hijo** (lo típico: un término y su
 definición), la línea que los une se acorta. markmap deja a todos los hijos a la
@@ -222,12 +242,14 @@ entregas la tarea ya en PDF.
 | `docs/app.js` | lo que hace la interfaz: vista previa, archivos, descargas |
 | `docs/i18n.js` | los textos en español e inglés |
 | `docs/concept.js` | el mapa conceptual (de arriba hacia abajo) |
+| `docs/mindmap.js` | el mapa mental (ramas curvas a ambos lados del centro) |
 | `docs/motor.js` | el exportador en el navegador: SVG, PNG, PDF y unir con la tarea |
 | `docs/spacing.js` | el aire entre ramas (lo comparten la página y el CLI) |
 | `markmap2pdf.py` | el CLI (renderiza y recorta con Chromium) |
 | `start.sh` | abre la interfaz en local |
 | `setup.sh` | instala lo que necesita el CLI |
 | `ejemplo.md` | mapa de prueba |
+| `tests/mindmap_browser.py` | pruebas de distribución del mapa mental y cambio entre modos |
 
 La versión anterior, con la interfaz servida por Python (FastAPI + Chromium),
 sigue en la rama [`version-python`](https://github.com/AmiyaMihari/Markmap-to-PDF/tree/version-python).
@@ -267,6 +289,23 @@ files.download('mapa.pdf')
 * **`Address already in use`** → ya hay una instancia abierta, o usa otro puerto:
   `bash start.sh 9000`.
 * **`playwright: command not found`** → no estás en el venv: `bash setup.sh`.
+
+---
+
+## Comprobar el mapa mental
+
+Después de `bash setup.sh`, ejecuta:
+
+```bash
+.venv/bin/python tests/mindmap_browser.py
+```
+
+La prueba abre Chromium sin ventana y un servidor local temporal. Comprueba
+solapamientos, encuadre, distribución determinista, textos largos, ramas
+desbalanceadas, ajustes de espaciado y cambios entre los tres modos. Ejecuta
+21 combinaciones de contenido y espaciado, además de comprobar que el tipo de
+mapa se conserve al recargar y que no haya errores de JavaScript. Requiere
+conexión para cargar las dependencias del CDN que usa la página.
 
 ---
 
