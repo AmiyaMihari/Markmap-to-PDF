@@ -55,7 +55,6 @@
       '- Viñetas con - para las ideas. Para poner una idea dentro de otra, agrégale ' +
       '4 espacios al inicio (máximo dos niveles de viñetas).\n' +
       '- Frases cortas, de unas 10 palabras como máximo, sin párrafos.\n' +
-      '- Todo en español.\n' +
       '- Sin texto antes ni después del bloque, sin tablas, sin imágenes y sin emojis.',
 
     'card.map': 'Tu mapa',
@@ -192,7 +191,6 @@
       '- Bullets with - for the ideas. To put an idea inside another, add 4 spaces ' +
       'at the start (two levels of bullets at most).\n' +
       '- Short phrases, about 10 words at most, no paragraphs.\n' +
-      '- Everything in English.\n' +
       '- No text before or after the block, no tables, no images and no emojis.',
 
     'card.map': 'Your map',
