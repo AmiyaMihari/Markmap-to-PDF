@@ -3,10 +3,16 @@ const md = $('#md'), strip = $('#strip'), statusEl = $('#status');
 let mapFile = null, docFile = null, docPages = 0, busy = false, mapCard = null;
 // el arbol del mapa cuando viene de un .html del REPL (si no, sale del editor)
 let replTree = null, replId = 0;
+// 'mind' = mapa mental (markmap, de izquierda a derecha)
+// 'concept' = mapa conceptual (concept.js, de arriba hacia abajo)
+let mode = 'mind';
+try { if (localStorage.getItem('mode') === 'concept') mode = 'concept'; } catch (e) { /* mental */ }
+// el dibujante de cada tipo; los dos se usan igual
+const mapClass = m => m === 'concept' ? ConceptMap : markmap.Markmap;
 
 /* ══════════════ vista previa en vivo ══════════════ */
 const T = new markmap.Transformer();
-let mm = null, mini = null;
+let mm = null, mini = null, mmMode = null, miniMode = null;
 
 /* Aire entre ramas: un solo lugar que lo lee, para que la vista previa y lo
    que se descarga digan siempre lo mismo (incluso con la casilla vacia). */
@@ -34,7 +40,8 @@ function hasMap(){ return !!replTree || !!md.value.trim(); }
    quitan cuando envuelven TODO el texto. */
 function mdText(){
   const m = /^\s*(`{3,}|~{3,})[^\n]*\n([\s\S]*?)\n\s*\1\s*$/.exec(md.value);
-  return m ? m[2] : md.value;
+  // y que markmap no pierda viñetas que van antes de un sub-encabezado (spacing.js)
+  return mmSpacing.fixMarkdown(m ? m[2] : md.value);
 }
 // mensaje de error en el idioma de la pagina
 function errText(e){ return e && e.code ? t('err.' + e.code) : (e && e.message) || t('err.generic'); }
@@ -43,10 +50,10 @@ function source(){
   if (replTree){
     const o = mapOpts({}), base = markmap.defaultOptions.color;
     o.color = n => (n.payload && n.payload.__c) || base(n);   // sus colores
-    return {root: structuredClone(replTree), opts: o, key: `html:${replId}:${air_}`};
+    return {root: structuredClone(replTree), opts: o, mode, key: `${mode}:html:${replId}:${air_}`};
   }
   const text = mdText(), res = T.transform(text);
-  return {root: res.root, opts: mapOpts(res), key: `md:${air_}:${text}`};
+  return {root: res.root, opts: mapOpts(res), mode, key: `${mode}:md:${air_}:${text}`};
 }
 function countNodes(n){ return 1 + (n.children || []).reduce((a, c) => a + countNodes(c), 0); }
 
@@ -59,7 +66,8 @@ async function preview(){
   }
   try{
     const {root, opts: o} = source();
-    if (!mm) mm = markmap.Markmap.create('#preview', o, root);
+    if (mm && mmMode !== mode){ mm.destroy(); mm = null; }
+    if (!mm){ mm = mapClass(mode).create('#preview', o, root); mmMode = mode; }
     else mm.setOptions(o);
     // setData y fit son ASINCRONOS: hay que esperarlos o se mide el mapa anterior.
     await mm.setData(root);
@@ -78,7 +86,10 @@ function renderMini(){
   try{
     const {root, opts} = source();
     const o = Object.assign(opts, {fitRatio: 0.92});
-    if (!mini || mini.svg.node() !== svg){ svg.innerHTML = ''; mini = markmap.Markmap.create(svg, o, root); }
+    if (!mini || mini.svg.node() !== svg || miniMode !== mode){
+      if (mini && mini.svg.node() === svg) mini.destroy();
+      svg.innerHTML = ''; mini = mapClass(mode).create(svg, o, root); miniMode = mode;
+    }
     else mini.setOptions(o);
     mini.setData(root)
       // fit() necesita el tamano final: la tarjeta entra con una animacion de escala.
@@ -535,12 +546,28 @@ I18N.onChange(() => {
   strip.querySelectorAll('.lbl[data-page]').forEach(l => { l.textContent = t('strip.page', {i: l.dataset.page}); });
   if (mapCard) updateOrder();
   if (docFile && docInfo) $('#docSub').textContent = docSubText();
+  showPrompt();
   preview();                                    // nodos, hoja y el ejemplo
 });
 
+/* ══════════════ tipo de mapa ══════════════ */
+const modesBox = $('.modes');
+function showMode(){
+  modesBox.dataset.active = mode;
+  modesBox.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === mode)));
+}
+modesBox.querySelectorAll('button').forEach(b => b.onclick = () => {
+  if (b.dataset.mode === mode) return;
+  mode = b.dataset.mode;
+  try { localStorage.setItem('mode', mode); } catch (e) { /* no se recuerda */ }
+  showMode(); showPrompt(); preview();
+});
+
 /* ══════════════ prompt para IA ══════════════ */
+const promptText = () => t('guide.prompt', {kind: t(mode === 'concept' ? 'kind.concept' : 'kind.mind')});
+function showPrompt(){ $('#aiPrompt').textContent = promptText(); }
 $('#copyPrompt').onclick = async () => {
-  const btn = $('#copyPrompt'), lbl = btn.querySelector('span'), text = t('guide.prompt');
+  const btn = $('#copyPrompt'), lbl = btn.querySelector('span'), text = promptText();
   try { await navigator.clipboard.writeText(text); }
   catch (e) {                                   // sin permiso: a la antigua
     const ta = document.createElement('textarea');
@@ -552,9 +579,10 @@ $('#copyPrompt').onclick = async () => {
   btn._done = setTimeout(() => { btn.classList.remove('ok'); lbl.textContent = t('guide.copy'); }, 1800);
 };
 
-// la pildora del selector se coloca sin animarse la primera vez
-$('#pill').style.transition = 'none';
-movePill();
+// las pildoras se colocan sin animarse la primera vez
+const pills = [$('#pill'), $('.modes-pill')];
+pills.forEach(el => { el.style.transition = 'none'; });
+movePill(); showMode(); showPrompt();
 $('#pill').offsetWidth;
-$('#pill').style.transition = '';
+pills.forEach(el => { el.style.transition = ''; });
 refresh(); preview();

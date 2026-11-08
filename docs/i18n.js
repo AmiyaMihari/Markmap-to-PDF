@@ -16,16 +16,23 @@
     'hero.sub': 'Tu mapa mental, recortado y con fondo blanco. Solo, o dentro de tu tarea.',
     'lang.label': 'Idioma',
 
+    'mode.label': 'Tipo de mapa',
+    'mode.mind': 'Mapa mental',
+    'mode.concept': 'Mapa conceptual',
+    'kind.mind': 'mapa mental',
+    'kind.concept': 'mapa conceptual',
+
     'guide.title': '¿Cómo se usa?',
     'guide.hint': 'el formato del mapa y un prompt para IA',
     'guide.format': 'El formato',
-    'guide.formatIntro': 'Cada línea es un nodo. Lo que pones al inicio decide dónde va:',
+    'guide.formatIntro': 'Cada línea es un nodo, y el mismo texto sirve para los dos tipos de mapa. Lo que pones al inicio decide dónde va:',
     'guide.h1': 'el tema central (solo uno)',
     'guide.h2': 'las ramas principales',
     'guide.h3': 'los subtemas de cada rama',
+    'guide.deeper': 'sub-ramas dentro de un subtema: cada # extra baja un nivel (hasta ######)',
     'guide.li': 'las ideas',
     'guide.indent': '4 espacios + -',
-    'guide.indentDesc': 'una idea dentro de la de arriba',
+    'guide.indentDesc': 'una idea dentro de la de arriba, sin límite de niveles',
     'guide.bold': '**negrita**',
     'guide.italic': '*cursiva*',
     'guide.styles': 'también funcionan',
@@ -33,8 +40,12 @@
       '# Fotosíntesis\n' +
       '## Etapas\n' +
       '### Fase luminosa\n' +
-      '- Ocurre en los tilacoides\n' +
-      '    - Produce ATP y NADPH\n' +
+      '#### Dónde ocurre\n' +
+      '- En los tilacoides\n' +
+      '#### Qué produce\n' +
+      '- ATP\n' +
+      '    - Energía para la célula\n' +
+      '- NADPH\n' +
       '### Ciclo de Calvin\n' +
       '- Fija el dióxido de carbono\n' +
       '## Factores\n' +
@@ -45,15 +56,16 @@
     'guide.copy': 'Copiar prompt',
     'guide.copied': '¡Copiado!',
     'guide.prompt':
-      'Hazme un mapa mental sobre: [ESCRIBE AQUÍ EL TEMA O PEGA TUS APUNTES]\n' +
+      'Hazme un {kind} sobre: [ESCRIBE AQUÍ EL TEMA O PEGA TUS APUNTES]\n' +
       '\n' +
       'Respóndeme solo con el mapa en Markdown compatible con markmap, dentro de un ' +
       'bloque de código, siguiendo estas reglas:\n' +
       '- Una sola línea con # para el tema central.\n' +
       '- ## para las ramas principales (entre 3 y 6).\n' +
-      '- ### para los subtemas de cada rama.\n' +
+      '- ### para los subtemas de cada rama, y #### (o más #, hasta ######) para ' +
+      'sub-ramas dentro de ellos cuando el tema lo pida.\n' +
       '- Viñetas con - para las ideas. Para poner una idea dentro de otra, agrégale ' +
-      '4 espacios al inicio (máximo dos niveles de viñetas).\n' +
+      '4 espacios al inicio.\n' +
       '- Frases cortas, de unas 10 palabras como máximo, sin párrafos.\n' +
       '- Sin texto antes ni después del bloque, sin tablas, sin imágenes y sin emojis.',
 
@@ -152,16 +164,23 @@
     'hero.sub': 'Your mind map, cropped and on a white background. On its own, or inside your assignment.',
     'lang.label': 'Language',
 
+    'mode.label': 'Map type',
+    'mode.mind': 'Mind map',
+    'mode.concept': 'Concept map',
+    'kind.mind': 'mind map',
+    'kind.concept': 'concept map',
+
     'guide.title': 'How does it work?',
     'guide.hint': 'the map format and a prompt for AI',
     'guide.format': 'The format',
-    'guide.formatIntro': 'Each line is a node. What you put at the start decides where it goes:',
+    'guide.formatIntro': 'Each line is a node, and the same text works for both map types. What you put at the start decides where it goes:',
     'guide.h1': 'the central topic (only one)',
     'guide.h2': 'the main branches',
     'guide.h3': 'the subtopics of each branch',
+    'guide.deeper': 'sub-branches inside a subtopic: each extra # goes one level deeper (up to ######)',
     'guide.li': 'the ideas',
     'guide.indent': '4 spaces + -',
-    'guide.indentDesc': 'an idea inside the one above',
+    'guide.indentDesc': 'an idea inside the one above, as deep as you like',
     'guide.bold': '**bold**',
     'guide.italic': '*italic*',
     'guide.styles': 'work too',
@@ -169,8 +188,12 @@
       '# Photosynthesis\n' +
       '## Stages\n' +
       '### Light reactions\n' +
-      '- Happen in the thylakoids\n' +
-      '    - Produce ATP and NADPH\n' +
+      '#### Where they happen\n' +
+      '- In the thylakoids\n' +
+      '#### What they produce\n' +
+      '- ATP\n' +
+      '    - Energy for the cell\n' +
+      '- NADPH\n' +
       '### Calvin cycle\n' +
       '- Fixes carbon dioxide\n' +
       '## Factors\n' +
@@ -181,15 +204,16 @@
     'guide.copy': 'Copy prompt',
     'guide.copied': 'Copied!',
     'guide.prompt':
-      'Make me a mind map about: [WRITE THE TOPIC HERE OR PASTE YOUR NOTES]\n' +
+      'Make me a {kind} about: [WRITE THE TOPIC HERE OR PASTE YOUR NOTES]\n' +
       '\n' +
       'Reply only with the map in markmap-compatible Markdown, inside a code block, ' +
       'following these rules:\n' +
       '- A single line with # for the central topic.\n' +
       '- ## for the main branches (between 3 and 6).\n' +
-      '- ### for the subtopics of each branch.\n' +
+      '- ### for the subtopics of each branch, and #### (or more #, up to ######) for ' +
+      'sub-branches inside them when the topic calls for it.\n' +
       '- Bullets with - for the ideas. To put an idea inside another, add 4 spaces ' +
-      'at the start (two levels of bullets at most).\n' +
+      'at the start.\n' +
       '- Short phrases, about 10 words at most, no paragraphs.\n' +
       '- No text before or after the block, no tables, no images and no emojis.',
 

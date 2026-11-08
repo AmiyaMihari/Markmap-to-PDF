@@ -33,7 +33,11 @@ con el Python que ya trae el sistema). Desde ahí:
 
 Debajo del título, **¿Cómo se usa?** explica en corto el formato que entiende el
 mapa y trae un prompt listo para pedirle el mapa a una IA (ChatGPT, Claude,
-Gemini…). Si pegas su respuesta con todo y las marcas ```` ``` ```` del bloque de
+Gemini…). No hay límite de niveles: después de `###` puedes seguir con `####`,
+`#####` y `######` para sub-ramas dentro de los subtemas, y con viñetas con
+sangría tan hondo como quieras. markmap tira las viñetas que van antes de un
+sub-encabezado (`### A`, unas viñetas y luego `#### B`); la página lo corrige
+sola y las conserva. Si pegas su respuesta con todo y las marcas ```` ``` ```` del bloque de
 código, la página las quita sola. Arriba a la derecha puedes cambiar la interfaz
 a **inglés**; se recuerda para la próxima vez.
 
@@ -46,6 +50,21 @@ alargado. Abajo a la derecha tiene cuatro botones:
 | **−** / **+** | alejar y acercar. Si te acercas más allá del encuadre, la hoja deja de recortar y el mapa se extiende por toda la bandeja, con el fondo en blanco |
 | **centrar** (la mirita) | vuelve a encuadrar el mapa en la hoja — igual que hacer doble clic sobre él |
 | **ampliar** (las flechas) | el mapa pasa a ocupar la ventana entera, blanco de borde a borde y sin marcos, desde el primer momento; `Esc`, el mismo botón o un clic en el borde para volver |
+
+### Mapa mental o mapa conceptual
+
+Arriba de **¿Cómo se usa?** eliges el tipo de mapa. El mismo texto sirve para los dos:
+
+| tipo | cómo se ve |
+|---|---|
+| **Mapa mental** | de izquierda a derecha, con ramas curvas (el de markmap) |
+| **Mapa conceptual** | de arriba hacia abajo, con cajas y líneas en ángulo, como un organigrama |
+
+En el conceptual, cada rama principal lleva su color. Un mapa chico va todo lado a
+lado; si uno grande quedaría más ancho que una hoja, sus grupos se van plegando en
+columnas bajo su caja hasta que la proporción quepa. Las ramas principales siempre
+quedan lado a lado. La elección se recuerda para la próxima vez. El CLI de Python
+solo hace mapas mentales.
 
 ### Aire entre ramas
 
@@ -202,6 +221,7 @@ entregas la tarea ya en PDF.
 | `docs/index.html` | la interfaz |
 | `docs/app.js` | lo que hace la interfaz: vista previa, archivos, descargas |
 | `docs/i18n.js` | los textos en español e inglés |
+| `docs/concept.js` | el mapa conceptual (de arriba hacia abajo) |
 | `docs/motor.js` | el exportador en el navegador: SVG, PNG, PDF y unir con la tarea |
 | `docs/spacing.js` | el aire entre ramas (lo comparten la página y el CLI) |
 | `markmap2pdf.py` | el CLI (renderiza y recorta con Chromium) |

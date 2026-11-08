@@ -1,5 +1,5 @@
-/* Aire entre ramas
-   ================
+/* Arreglos sobre markmap: aire entre ramas y viñetas perdidas
+   ============================================================
    Archivo unico: lo cargan la pagina (docs/index.html) y el CLI de Python
    (markmap2pdf.py lo lee e inyecta en su plantilla), asi que el mapa sale
    igual en los dos.
@@ -120,7 +120,65 @@
     return true;
   }
 
+  /* markmap pierde las viñetas de un encabezado que ademas tiene sub-
+     encabezados: con "### A", dos viñetas y luego "#### B", solo queda B.
+     Es Markdown valido; pasa hasta en la ultima version (0.18.13).
+
+     Arreglo, antes de que markmap lea el texto: esas viñetas se vuelven
+     encabezados del mismo nivel que el sub-encabezado ("#### ..."), y lo que
+     colgaba de ellas sube un nivel de sangria. Quedan todas como hijas de A,
+     en su orden. Las secciones normales no se tocan. */
+  function fixMarkdown(md) {
+    const L = String(md).split('\n');
+    const lv = new Array(L.length).fill(0);     // nivel de encabezado; -1 = codigo
+    let start = 0, fence = null;
+    if (/^---\s*$/.test(L[0] || '')) {          // encabezado YAML (frontmatter)
+      for (let j = 1; j < L.length; j++) {
+        if (/^(---|\.\.\.)\s*$/.test(L[j])) { start = j + 1; break; }
+      }
+    }
+    for (let j = start; j < L.length; j++) {
+      const f = /^ {0,3}(`{3,}|~{3,})/.exec(L[j]);
+      if (fence) {
+        if (f && f[1][0] === fence[0] && f[1].length >= fence.length) fence = null;
+        lv[j] = -1;
+      } else if (f) {
+        fence = f[1]; lv[j] = -1;
+      } else {
+        const h = /^ {0,3}(#{1,6})\s/.exec(L[j]);
+        if (h) lv[j] = h[1].length;
+      }
+    }
+    const out = L.slice();
+    const indent = line => line.replace(/\t/g, '    ').match(/^ */)[0].length;
+    for (let a = start; a < L.length; a++) {
+      if (lv[a] <= 0) continue;
+      let b = a + 1;
+      while (b < L.length && lv[b] <= 0) b++;
+      if (b >= L.length || lv[b] <= lv[a]) continue;   // sin sub-encabezados: bien
+      const to = '#'.repeat(lv[b]) + ' ';
+      for (let j = a + 1; j < b; j++) {
+        if (lv[j] === -1) continue;
+        const m = /^ {0,3}(?:[-*+]|\d+[.)])\s+(.*)$/.exec(L[j]);
+        if (!m) continue;
+        out[j] = to + m[1];
+        // lo que cuelga de la viñeta (lineas con sangria): un nivel menos
+        let k = j + 1;
+        while (k < b && lv[k] !== -1 && (!L[k].trim() || /^(\t| {2,})/.test(L[k]))) k++;
+        const body = [];
+        for (let x = j + 1; x < k; x++) if (L[x].trim()) body.push(x);
+        if (body.length) {
+          const cut = Math.min(...body.map(x => indent(L[x])));
+          body.forEach(x => { out[x] = L[x].replace(/\t/g, '    ').slice(cut); });
+        }
+        j = k - 1;
+      }
+    }
+    return out.join('\n');
+  }
+
   global.mmSpacing = {
+    fixMarkdown: fixMarkdown,
     patch: patch,
     /* Opciones listas para Markmap.create() o setOptions(). */
     opts: function (spacing, gap, base) {

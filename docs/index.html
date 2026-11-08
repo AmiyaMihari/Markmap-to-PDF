@@ -18,6 +18,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/markmap-lib@0.18.12/dist/browser/index.iife.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.12/dist/browser/index.js"></script>
 <script defer src="spacing.js"></script>
+<script defer src="concept.js"></script>
 <script defer src="motor.js"></script>
 <script defer src="app.js"></script>
 
@@ -107,9 +108,35 @@ body{
 }
 .lang[data-active="en"] .lang-pill{transform:translateX(100%)}
 
+/* ─────────────────────────────  tipo de mapa  ──────────────────────── */
+.modes{
+  position:relative; display:inline-grid; grid-template-columns:1fr 1fr;
+  margin:-14px 0 14px; padding:4px; border-radius:13px; background:rgba(120,120,128,.12);
+  animation:rise .8s var(--ease) .05s both;
+}
+.modes button{
+  position:relative; z-index:1; display:flex; align-items:center; justify-content:center; gap:8px;
+  border:0; background:none; cursor:pointer; font:inherit; font-size:14px; font-weight:550;
+  letter-spacing:-.01em; padding:9px 18px; border-radius:10px; color:var(--muted);
+  transition:color .35s var(--ease);
+}
+.modes button:hover, .modes button[aria-checked="true"]{color:var(--text)}
+.modes button svg{
+  width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8;
+  stroke-linecap:round; stroke-linejoin:round; transition:color .35s var(--ease);
+}
+.modes button[aria-checked="true"] svg{color:var(--accent)}
+.modes-pill{
+  position:absolute; z-index:0; top:4px; left:4px; width:calc(50% - 4px); height:calc(100% - 8px);
+  background:var(--solid); border-radius:10px;
+  box-shadow:0 1px 3px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+  transition:transform .45s var(--spring);
+}
+.modes[data-active="concept"] .modes-pill{transform:translateX(100%)}
+
 /* ─────────────────────────────  instructivo  ───────────────────────── */
 /* .card.guide: mas fuerte que .card, que viene despues y le pondria relleno */
-.card.guide{padding:0; margin:-12px 0 20px}
+.card.guide{padding:0; margin:0 0 20px}
 .guide > summary{padding:17px 24px; gap:11px}
 .guide > summary .gi{
   width:24px; height:24px; flex:none; display:grid; place-items:center; border-radius:50%;
@@ -499,6 +526,18 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
     </div>
   </header>
 
+  <div class="modes" role="radiogroup" aria-label="Tipo de mapa" data-i18n-aria="mode.label" data-active="mind">
+    <span class="modes-pill"></span>
+    <button type="button" role="radio" data-mode="mind" aria-checked="true">
+      <svg viewBox="0 0 24 24"><circle cx="4.5" cy="12" r="2"/><path d="M6.5 12h3M9.5 12c2.6 0 2.6-6 5.2-6h4.8M9.5 12h10M9.5 12c2.6 0 2.6 6 5.2 6h4.8"/></svg>
+      <span data-i18n="mode.mind">Mapa mental</span>
+    </button>
+    <button type="button" role="radio" data-mode="concept" aria-checked="false">
+      <svg viewBox="0 0 24 24"><rect x="8.5" y="2.5" width="7" height="5" rx="1.2"/><path d="M12 7.5V11M5.5 11h13M5.5 11v3M12 11v3M18.5 11v3"/><rect x="3" y="14" width="5" height="4.5" rx="1"/><rect x="9.5" y="14" width="5" height="4.5" rx="1"/><rect x="16" y="14" width="5" height="4.5" rx="1"/></svg>
+      <span data-i18n="mode.concept">Mapa conceptual</span>
+    </button>
+  </div>
+
   <details class="card guide" style="--d:.5">
     <summary>
       <span class="gi">
@@ -516,15 +555,20 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
           <li><code>#</code><span data-i18n="guide.h1">el tema central (solo uno)</span></li>
           <li><code>##</code><span data-i18n="guide.h2">las ramas principales</span></li>
           <li><code>###</code><span data-i18n="guide.h3">los subtemas de cada rama</span></li>
+          <li><code>####…</code><span data-i18n="guide.deeper">sub-ramas dentro de un subtema: cada # extra baja un nivel (hasta ######)</span></li>
           <li><code>-</code><span data-i18n="guide.li">las ideas</span></li>
-          <li><code data-i18n="guide.indent">4 espacios + -</code><span data-i18n="guide.indentDesc">una idea dentro de la de arriba</span></li>
+          <li><code data-i18n="guide.indent">4 espacios + -</code><span data-i18n="guide.indentDesc">una idea dentro de la de arriba, sin límite de niveles</span></li>
           <li class="wide"><code data-i18n="guide.bold">**negrita**</code><code data-i18n="guide.italic">*cursiva*</code><code>`code`</code><code>[link](url)</code><span data-i18n="guide.styles">también funcionan</span></li>
         </ul>
         <pre data-i18n="guide.example"># Fotosíntesis
 ## Etapas
 ### Fase luminosa
-- Ocurre en los tilacoides
-    - Produce ATP y NADPH
+#### Dónde ocurre
+- En los tilacoides
+#### Qué produce
+- ATP
+    - Energía para la célula
+- NADPH
 ### Ciclo de Calvin
 - Fija el dióxido de carbono
 ## Factores
@@ -533,7 +577,7 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
       <div>
         <h3 data-i18n="guide.ai">Con IA</h3>
         <p data-i18n="guide.aiIntro">¿Usas ChatGPT, Claude, Gemini u otra IA? Copia este prompt, cambia el tema y pega aquí lo que te responda (con el botón de copiar de su bloque de código).</p>
-        <pre class="prompt" id="aiPrompt" data-i18n="guide.prompt"></pre>
+        <pre class="prompt" id="aiPrompt"></pre>
         <button type="button" class="copy" id="copyPrompt">
           <svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
           <span data-i18n="guide.copy">Copiar prompt</span>

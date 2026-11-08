@@ -94,6 +94,8 @@ window.__mmError = null;
 (async function () {
   try {
     var md = document.getElementById('md-source').textContent;
+    // que markmap no pierda viñetas que van antes de un sub-encabezado
+    if (window.mmSpacing && window.mmSpacing.fixMarkdown) md = window.mmSpacing.fixMarkdown(md);
     // Ambos builds hacen `this.markmap = this.markmap || {}`, o sea que se
     // FUSIONAN en el mismo global. __mmLib queda como respaldo defensivo.
     var view = window.markmap || {};
