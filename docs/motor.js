@@ -557,7 +557,7 @@
   }
 
   global.Motor = {
-    render, forget, svg, png, pdf, merge, readRepl, pdfjs, fail,
+    render, forget, svg, png, pdf, merge, readRepl, pdfjs, fail, settle,
     // adelantar la descarga de lo que se va a necesitar (al pasar el raton
     // por un boton, al soltar la tarea...) sin bloquear nada
     preload(kind) {

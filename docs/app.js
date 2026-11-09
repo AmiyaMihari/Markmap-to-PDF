@@ -81,9 +81,11 @@ async function preview(){
     if (mm && mmMode !== mode){ mm.destroy(); mm = null; }
     if (!mm){ mm = mapClass(mode).create('#preview', o, root); mmMode = mode; }
     else mm.setOptions(o);
-    // setData y fit son ASINCRONOS: hay que esperarlos o se mide el mapa anterior.
+    // setData es ASINCRONO y markmap acomoda los nodos un cuadro despues: hay que
+    // esperarlo o se mide el mapa a medio acomodar. El encuadre lo hace fitPaper,
+    // una sola vez (el de markmap es una animacion y cada uno espera cuadros).
     await mm.setData(root);
-    await mm.fit();
+    await Motor.settle($('#preview > g'));
     const n = replTree ? countNodes(replTree)
       : (mdText().match(/^\s*(#{1,6}\s|[-*+]\s)/gm) || []).length;
     $('#pvInfo').textContent = n ? t('pv.nodes', {n}) : t('pv.noNodes');
@@ -174,13 +176,9 @@ function hint(){
     pvCard.classList.contains('inspect') ? t('pv.zoomed') :
     pvCard.classList.contains('big')     ? t('pv.esc') : '';
 }
-addEventListener('resize', fitPaper);
 $('#pad').addEventListener('input', fitPaper);
 // el espaciado cambia el layout: hay que volver a dibujar el mapa
 ['#spacing','#gap'].forEach(sel => $(sel).addEventListener('input', redraw));
-// Red de seguridad: recentrar siempre que la hoja cambie de tamano.
-if (window.ResizeObserver)
-  new ResizeObserver(() => recenter()).observe($('#paper'));
 
 /* controles de la vista previa: acercar, alejar, centrar y ampliar */
 function zoom(f){ if (mm && mm.rescale){ mm.rescale(f); requestAnimationFrame(lens); } }
@@ -210,8 +208,16 @@ $('#scrim').onclick = () => big(false);
 addEventListener('keydown', e => {
   if (e.key === 'Escape' && pvCard.classList.contains('big')) big(false);
 });
-// la bandeja cambia de tamano al ampliar: la hoja se vuelve a ajustar sola
-if (window.ResizeObserver) new ResizeObserver(() => fitPaper()).observe($('#tray'));
+/* La bandeja cambia de tamano al ampliar o al cambiar la ventana: la hoja se
+   vuelve a ajustar sola. Varios avisos en el mismo cuadro se juntan en uno. */
+let fitQueued = false;
+function queueFit(){
+  if (fitQueued) return;
+  fitQueued = true;
+  requestAnimationFrame(() => { fitQueued = false; fitPaper(); });
+}
+if (window.ResizeObserver) new ResizeObserver(queueFit).observe($('#tray'));
+else addEventListener('resize', queueFit);
 
 /* ══════════════ segmented control ══════════════ */
 const segBtns = [...document.querySelectorAll('.seg button')];

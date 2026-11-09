@@ -28,7 +28,7 @@
 /* ─────────────────────────────  tokens  ───────────────────────────── */
 :root{
   --bg:#f2f2f5; --glow-a:rgba(0,113,227,.16); --glow-b:rgba(94,92,230,.14);
-  --surface:rgba(255,255,255,.74); --solid:#fff; --paper:#fff;
+  --surface:rgba(255,255,255,.74); --bar:#fbfbfc; --solid:#fff; --paper:#fff;
   --text:#1d1d1f; --muted:#86868b; --faint:#a1a1a6;
   --line:rgba(0,0,0,.09); --line-2:rgba(0,0,0,.16);
   --accent:#0071e3; --accent-2:#5e5ce6; --accent-soft:rgba(0,113,227,.09);
@@ -44,7 +44,7 @@
 @media (prefers-color-scheme:dark){
   :root{
     --bg:#0b0b0d; --glow-a:rgba(10,132,255,.20); --glow-b:rgba(94,92,230,.18);
-    --surface:rgba(28,28,30,.66); --solid:#1c1c1e; --paper:#fff;
+    --surface:rgba(28,28,30,.66); --bar:#17171a; --solid:#1c1c1e; --paper:#fff;
     --text:#f5f5f7; --muted:#98989d; --faint:#7c7c81;
     --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.20);
     --accent:#0a84ff; --accent-2:#6e6bf0; --accent-soft:rgba(10,132,255,.15);
@@ -66,15 +66,15 @@ body{
   -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
   overflow-x:hidden;
 }
-/* halos de fondo, muy sutiles */
-.glow{position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none}
-.glow i{
-  position:absolute; display:block; border-radius:50%; filter:blur(90px);
-  animation:drift 26s var(--ease) infinite alternate;
+/* halos de fondo, muy sutiles. Son degradados quietos: se pintan una sola
+   vez. (Antes eran dos circulos con filter:blur moviendose sin parar, y con
+   eso la pagina gastaba un nucleo entero aunque nadie la tocara.) */
+.glow{
+  position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(32vw circle at 15vw 9vw, var(--glow-a), var(--glow-a) 35%, transparent),
+    radial-gradient(28vw circle at 92vw calc(36vh + 20vw), var(--glow-b), var(--glow-b) 35%, transparent);
 }
-.glow i:nth-child(1){width:46vw;height:46vw;background:var(--glow-a);top:-14vw;left:-8vw}
-.glow i:nth-child(2){width:40vw;height:40vw;background:var(--glow-b);top:36vh;right:-12vw;animation-delay:-13s}
-@keyframes drift{to{transform:translate3d(4vw,6vh,0) scale(1.14)}}
 
 .wrap{max-width:1280px; margin:0 auto; padding:44px 24px 132px}
 
@@ -202,8 +202,7 @@ body{
 .col{display:flex; flex-direction:column; gap:20px; min-width:0}
 
 .card{
-  background:var(--surface); backdrop-filter:blur(24px) saturate(180%);
-  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  background:var(--surface);
   border:1px solid var(--line); border-radius:var(--r); padding:24px;
   box-shadow:var(--sh-s); transition:box-shadow .5s var(--ease), transform .5s var(--ease);
   animation:rise .85s var(--ease) both; animation-delay:calc(var(--d,0) * .09s);
@@ -434,8 +433,7 @@ details[open] .opts{animation:rise .5s var(--ease) both}
 }
 .pv-ctl{
   position:absolute; right:12px; bottom:12px; display:flex; align-items:center; gap:2px;
-  padding:4px; border-radius:12px; background:rgba(255,255,255,.72);
-  backdrop-filter:blur(18px) saturate(180%); -webkit-backdrop-filter:blur(18px) saturate(180%);
+  padding:4px; border-radius:12px; background:rgba(255,255,255,.93);
   border:1px solid rgba(0,0,0,.07); box-shadow:0 2px 10px rgba(0,0,0,.10);
   opacity:.55; transition:opacity .3s var(--ease), transform .45s var(--spring);
 }
@@ -457,8 +455,7 @@ details[open] .opts{animation:rise .5s var(--ease) both}
    de marco -titulo fuera, bordes flacos- para que la hoja crezca lo mas
    posible; lo demas es espacio para el mapa. */
 .scrim{
-  position:fixed; inset:0; z-index:55; background:rgba(0,0,0,.42);
-  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+  position:fixed; inset:0; z-index:55; background:rgba(0,0,0,.5);
   animation:fadeIn .35s var(--ease) both;
 }
 body.big-on{overflow:hidden}
@@ -495,8 +492,7 @@ body.big-on{overflow:hidden}
 /* ─────────────────────────────  barra de acciones  ──────────────── */
 .bar{
   position:fixed; left:0; right:0; bottom:0; z-index:30;
-  background:var(--surface); backdrop-filter:blur(28px) saturate(180%);
-  -webkit-backdrop-filter:blur(28px) saturate(180%);
+  background:var(--bar);
   border-top:1px solid var(--line); padding:15px 24px;
   animation:slideUp .8s var(--ease) .25s both;
 }
@@ -545,13 +541,12 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
 
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important}
-  .glow i{animation:none}
 }
 </style>
 </head>
 <body>
 
-<div class="glow"><i></i><i></i></div>
+<div class="glow"></div>
 
 <div class="wrap">
   <header class="hero">
