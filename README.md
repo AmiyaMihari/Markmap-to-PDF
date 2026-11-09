@@ -99,9 +99,9 @@ tarjeta; lo que va debajo del evento son los detalles. La fecha se reconoce así
 | `## Siglo XIX` | Siglo XIX | (solo los detalles) |
 | `## Infancia` | (un punto en el eje) | Infancia |
 
-Las tarjetas se alternan a un lado y otro del eje. La línea va horizontal mientras
-no quede más de tres veces más ancha que alta; si no, se pone vertical. En
-**Ajustes**, *Dirección* la fija en horizontal o vertical, *Separación entre
+Las tarjetas se alternan a un lado y otro del eje. A la derecha de **Vista
+previa** aparecen dos botones, **Horizontal** y **Vertical**, para elegir hacia
+dónde corre el eje; la elección se recuerda. En **Ajustes**, *Separación entre
 ramas* aleja las tarjetas y *Aire entre ramas principales* separa los eventos
 sobre el eje. Con este tipo, el prompt de **¿Cómo se usa?** pide a la IA los
 eventos en orden y con su fecha.
@@ -334,8 +334,8 @@ Cada prueba abre Chromium sin ventana y un servidor local temporal. Comprueban
 solapamientos, encuadre, distribución determinista, textos largos, ajustes de
 espaciado y cambios entre los modos, que el tipo de mapa se conserve al recargar
 y que no haya errores de JavaScript. La del mapa mental corre 21 combinaciones
-de contenido y espaciado; la de la línea del tiempo, 12 formatos de fecha y 63
-combinaciones de contenido, dirección y espaciado. Requieren conexión para cargar
+de contenido y espaciado; la de la línea del tiempo, 12 formatos de fecha, 42
+combinaciones de contenido, dirección y espaciado, y los botones de dirección. Requieren conexión para cargar
 las dependencias del CDN que usa la página.
 
 ---

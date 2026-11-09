@@ -391,6 +391,36 @@ details[open] .opts{animation:rise .5s var(--ease) both}
 
 /* ─────────────────────────────  vista previa  ───────────────────── */
 .preview-card{position:sticky; top:24px}
+/* el titulo y, en la linea del tiempo, los botones de direccion a su derecha */
+.pv-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 18px; min-height:34px}
+.pv-head h2{margin:0}
+.orient{
+  position:relative; display:inline-grid; grid-template-columns:1fr 1fr; flex:none;
+  padding:3px; border-radius:11px; background:rgba(120,120,128,.12);
+}
+.orient button{
+  position:relative; z-index:1; display:flex; align-items:center; justify-content:center; gap:6px;
+  border:0; background:none; cursor:pointer; font:inherit; font-size:13px; font-weight:550;
+  padding:5px 12px; border-radius:8px; color:var(--muted); transition:color .35s var(--ease);
+}
+.orient button:hover, .orient button[aria-checked="true"]{color:var(--text)}
+.orient button svg{
+  width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.8;
+  stroke-linecap:round; stroke-linejoin:round;
+}
+.orient button[aria-checked="true"] svg{color:var(--accent)}
+.orient-pill{
+  position:absolute; z-index:0; top:3px; left:3px; width:calc(50% - 3px); height:calc(100% - 6px);
+  background:var(--solid); border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.11);
+  transition:transform .45s var(--spring);
+}
+.orient[data-active="vertical"] .orient-pill{transform:translateX(100%)}
+.pv-head h2{white-space:nowrap}
+/* en el celular no caben los iconos: solo el texto, mas compacto */
+@media(max-width:560px){
+  .orient button{padding:5px 9px; font-size:12.5px}
+  .orient button svg{display:none}
+}
 .tray{
   position:relative; display:flex; align-items:center; justify-content:center;
   height:min(72vh,640px); padding:16px; border-radius:15px;
@@ -437,7 +467,7 @@ body.big-on{overflow:hidden}
   display:flex; flex-direction:column; overflow:hidden; border-radius:17px;
   box-shadow:var(--sh-l); animation:pop .45s var(--spring) both;
 }
-.preview-card.big h2{display:none}
+.preview-card.big .pv-head{display:none}
 .preview-card.big .tray{
   flex:1 1 auto; height:auto; min-height:0; padding:8px; border-radius:11px;
   background:var(--paper);   /* la hoja ya ocupa la bandeja: todo es papel */
@@ -723,14 +753,6 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
               <label for="gap" data-i18n="set.gap">Aire entre ramas principales</label>
               <input type="number" id="gap" min="0" max="400" value="40"><span class="unit" data-i18n="set.gapUnit">px extra, solo en el primer nivel</span>
             </div>
-            <div class="row hidden" id="tlDirRow">
-              <label for="tlDir" data-i18n="set.tlDir">Dirección</label>
-              <select id="tlDir">
-                <option value="auto" selected data-i18n="set.tlAuto">automática, según el tamaño</option>
-                <option value="horizontal" data-i18n="set.tlH">horizontal</option>
-                <option value="vertical" data-i18n="set.tlV">vertical</option>
-              </select>
-            </div>
             <div class="row">
               <label for="pad" data-i18n="set.pad">Margen del mapa</label>
               <input type="number" id="pad" min="0" max="400" value="20"><span class="unit" data-i18n="set.padUnit">px alrededor</span>
@@ -759,7 +781,21 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
 
     <div class="col">
       <section class="card preview-card" style="--d:2">
-        <h2 data-i18n="pv.title">Vista previa</h2>
+        <div class="pv-head">
+          <h2 data-i18n="pv.title">Vista previa</h2>
+          <!-- solo en la linea del tiempo: hacia donde corre el eje -->
+          <div class="orient hidden" id="orient" role="radiogroup" aria-label="Dirección de la línea del tiempo" data-i18n-aria="pv.dir" data-active="horizontal">
+            <span class="orient-pill"></span>
+            <button type="button" role="radio" data-dir="horizontal" aria-checked="true">
+              <svg viewBox="0 0 24 24"><path d="M3 12h15m0 0-2.5-2.5M18 12l-2.5 2.5"/><circle cx="7" cy="12" r="1.7"/><circle cx="12.5" cy="12" r="1.7"/></svg>
+              <span data-i18n="pv.dirH">Horizontal</span>
+            </button>
+            <button type="button" role="radio" data-dir="vertical" aria-checked="false">
+              <svg viewBox="0 0 24 24"><path d="M12 3v15m0 0-2.5-2.5M12 18l2.5-2.5"/><circle cx="12" cy="7" r="1.7"/><circle cx="12" cy="12.5" r="1.7"/></svg>
+              <span data-i18n="pv.dirV">Vertical</span>
+            </button>
+          </div>
+        </div>
         <div class="tray" id="tray">
           <div class="paper" id="paper"><svg id="preview"></svg></div>
           <div class="pv-ctl">

@@ -8,9 +8,9 @@
      lo de abajo  los detalles del evento, dentro de su tarjeta
 
    Las tarjetas se alternan a un lado y otro del eje: cada una solo tiene que
-   librar a la anterior de su mismo lado, y la linea sale mas corta. Si en
-   horizontal quedaria demasiado alargada, se pone vertical (o lo que diga la
-   opcion `timelineDir`: 'auto', 'horizontal' o 'vertical').
+   librar a la anterior de su mismo lado, y la linea sale mas corta. Va
+   horizontal, o vertical si la opcion `timelineDir` es 'vertical' (la elige
+   quien usa la pagina, con los botones junto a "Vista previa").
 
    Hereda de ConceptMap (concept.js) todo lo que la pagina usa de markmap:
    create, setData, setOptions, fit, rescale, destroy, svg y state.rect. El
@@ -178,51 +178,25 @@
       if (top) Object.assign(top, size(top));
       events.forEach(e => { e.cs = size(e.card); e.ps = size(e.pill) || {w: 16, h: 16}; });
 
-      // ── 3. acomodo, en una direccion u otra ───────────────────────────────
+      // ── 3. acomodo, en la direccion elegida ───────────────────────────────
       /* "a lo largo" es la direccion del eje y "a lo ancho", la otra. Cada
          etiqueta libra a la anterior sobre el eje; cada tarjeta, solo a la
          anterior de su mismo lado. */
-      function plan(vertical) {
-        const along = s => vertical ? s.h : s.w, across = s => vertical ? s.w : s.h;
-        const reach = Math.max(...events.map(e => across(e.ps)), 16) / 2 + stem;
-        const last = {};
-        const at = [];
-        events.forEach((e, i) => {
-          const side = vertical ? (i % 2 ? -1 : 1) : (i % 2 ? 1 : -1);
-          let p = i ? at[i - 1] + (along(events[i - 1].ps) + along(e.ps)) / 2 + pillGap : 0;
-          const prev = last[side];
-          if (e.cs && prev) p = Math.max(p, prev.p + (along(prev.cs) + along(e.cs)) / 2 + cardGap);
-          if (e.cs) last[side] = {p, cs: e.cs};
-          at.push(p);
-        });
-        // la caja de todo (sin el titulo), en coordenadas a lo largo / a lo ancho
-        let a0 = Infinity, a1 = -Infinity, c0 = 0, c1 = 0;
-        events.forEach((e, i) => {
-          const side = vertical ? (i % 2 ? -1 : 1) : (i % 2 ? 1 : -1);
-          a0 = Math.min(a0, at[i] - along(e.ps) / 2);
-          a1 = Math.max(a1, at[i] + along(e.ps) / 2);
-          c0 = Math.min(c0, -across(e.ps) / 2);
-          c1 = Math.max(c1, across(e.ps) / 2);
-          if (!e.cs) return;
-          a0 = Math.min(a0, at[i] - along(e.cs) / 2);
-          a1 = Math.max(a1, at[i] + along(e.cs) / 2);
-          const far = side * (reach + across(e.cs));
-          c0 = Math.min(c0, far); c1 = Math.max(c1, far);
-        });
-        if (!events.length) a0 = a1 = 0;
-        const start = (events.length ? at[0] - along(events[0].ps) / 2 : 0) - 26;
-        const end = (events.length ? at[at.length - 1] + along(events[events.length - 1].ps) / 2 : 0) + 30;
-        a0 = Math.min(a0, start); a1 = Math.max(a1, end + 18);
-        return {vertical, at, reach, start, end, a0, a1, c0, c1,
-                w: vertical ? c1 - c0 : a1 - a0, h: vertical ? a1 - a0 : c1 - c0};
-      }
-      const want = o.timelineDir;
-      let L = plan(want === 'vertical');
-      // automatico: horizontal (la clasica) mientras no quede mas de 3 veces
-      // mas ancha que alta, contando el titulo; si no, vertical
-      const titleH = top ? top.h + 24 : 0;
-      if (want !== 'horizontal' && want !== 'vertical' && L.w > (L.h + titleH) * 3) L = plan(true);
-      const V = L.vertical;
+      const V = o.timelineDir === 'vertical';
+      const along = s => V ? s.h : s.w, across = s => V ? s.w : s.h;
+      const sideOf = i => V ? (i % 2 ? -1 : 1) : (i % 2 ? 1 : -1);
+      const reach = Math.max(...events.map(e => across(e.ps)), 16) / 2 + stem;
+      const last = {}, at = [];
+      events.forEach((e, i) => {
+        let p = i ? at[i - 1] + (along(events[i - 1].ps) + along(e.ps)) / 2 + pillGap : 0;
+        const prev = last[sideOf(i)];
+        if (e.cs && prev) p = Math.max(p, prev.p + (along(prev.cs) + along(e.cs)) / 2 + cardGap);
+        if (e.cs) last[sideOf(i)] = {p, cs: e.cs};
+        at.push(p);
+      });
+      const n = events.length;
+      const start = (n ? at[0] - along(events[0].ps) / 2 : 0) - 26;
+      const end = (n ? at[n - 1] + along(events[n - 1].ps) / 2 : 0) + 30;
       // a lo largo / a lo ancho -> x, y
       const xy = (a, c) => V ? [c, a] : [a, c];
 
@@ -234,9 +208,9 @@
         attrs(p, {d, fill: 'none', stroke, 'stroke-width': width, 'stroke-linecap': 'round'});
         lines.appendChild(p);
       };
-      const [sx, sy] = xy(L.start, 0), [ex, ey] = xy(L.end, 0);
+      const [sx, sy] = xy(start, 0), [ex, ey] = xy(end, 0);
       line(`M${f1(sx)},${f1(sy)}L${f1(ex)},${f1(ey)}`, AXIS, 6, 'tl-axis');
-      const tip = xy(L.end + 18, 0), b1 = xy(L.end, -10), b2 = xy(L.end, 10);
+      const tip = xy(end + 18, 0), b1 = xy(end, -10), b2 = xy(end, 10);
       const arrow = el('path', 'tl-arrow');
       attrs(arrow, {d: `M${f1(tip[0])},${f1(tip[1])}L${f1(b1[0])},${f1(b1[1])}L${f1(b2[0])},${f1(b2[1])}Z`, fill: AXIS});
       lines.appendChild(arrow);
@@ -250,8 +224,8 @@
         grow(cx + w / 2 + 1, cy + h / 2 + 1);
       };
       events.forEach((e, i) => {
-        const side = V ? (i % 2 ? -1 : 1) : (i % 2 ? 1 : -1);
-        const [px, py] = xy(L.at[i], 0);
+        const side = sideOf(i);
+        const [px, py] = xy(at[i], 0);
         if (e.pill) {
           place(e.pill.fo, e.chip, e.ps.w, e.ps.h, px, py,
                 {rx: e.ps.h / 2, fill: d3.color(e.color).darker(0.25).formatHex()});
@@ -261,12 +235,12 @@
         }
         if (!e.cs) return;
         const half = (V ? e.cs.w : e.cs.h) / 2;
-        const [cx, cy] = xy(L.at[i], side * (L.reach + half));
+        const [cx, cy] = xy(at[i], side * (reach + half));
         place(e.card.fo, e.box, e.cs.w, e.cs.h, cx, cy,
               {rx: 10, fill: mix(e.color, 0.93), stroke: mix(e.color, 0.55), 'stroke-width': 1.2});
         // la union, del borde de la etiqueta (o del punto) al de la tarjeta
-        const from = side * ((V ? e.ps.w : e.ps.h) / 2), to = side * L.reach;
-        const [ax, ay] = xy(L.at[i], from), [bx, by] = xy(L.at[i], to);
+        const from = side * ((V ? e.ps.w : e.ps.h) / 2), to = side * reach;
+        const [ax, ay] = xy(at[i], from), [bx, by] = xy(at[i], to);
         line(`M${f1(ax)},${f1(ay)}L${f1(bx)},${f1(by)}`, mix(e.color, 0.35), 2, 'tl-stem');
       });
 

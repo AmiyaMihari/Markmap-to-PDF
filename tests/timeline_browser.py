@@ -135,23 +135,31 @@ def main():
 
             checks = 0
             for name, tree in cases().items():
-                for dir_ in ["auto", "horizontal", "vertical"]:
+                for dir_ in ["horizontal", "vertical"]:
                     for spacing, gap in [(10, 40), (0, 0), (120, 400)]:
                         result = page.evaluate(GEOMETRY, {"data": tree, "spacing": spacing, "gap": gap, "dir": dir_})
                         assert not result["failures"], f"{name} ({dir_}, {spacing}, {gap}): {result['failures']}"
                         checks += 1
-                print(f"PASS {name}: 3 directions x 3 spacings")
+                print(f"PASS {name}: 2 directions x 3 spacings")
 
             page.locator("#md").fill("# Historia\n## 1810 — Inicio\n- Detalle\n## 1821: Fin\n")
             for mode in ["timeline", "mind", "timeline"]:
                 page.locator(f'button[data-mode="{mode}"]').click()
                 assert page.evaluate("localStorage.getItem('mapType')") == mode
-                visible = page.evaluate("!document.querySelector('#tlDirRow').classList.contains('hidden')")
-                assert visible == (mode == "timeline"), f"direction row visible={visible} in {mode}"
+                visible = page.evaluate("!document.querySelector('#orient').classList.contains('hidden')")
+                assert visible == (mode == "timeline"), f"direction buttons visible={visible} in {mode}"
             page.wait_for_function("document.querySelectorAll('#preview .tl-node').length === 3")
+            # horizontal by default; the vertical button turns the axis and is remembered
+            axis = "(() => { const b = document.querySelector('#preview .tl-axis').getBBox(); return b.height > b.width ? 'vertical' : 'horizontal'; })()"
+            assert page.evaluate(axis) == "horizontal"
+            page.locator('#orient button[data-dir="vertical"]').click()
+            page.wait_for_function(axis + " === 'vertical'")
+            assert page.evaluate("localStorage.getItem('tlDir')") == "vertical"
             page.reload(wait_until="networkidle")
             page.wait_for_selector("#preview .tl-node")
             assert page.locator('button[data-mode="timeline"]').get_attribute("aria-checked") == "true"
+            assert page.locator('#orient button[data-dir="vertical"]').get_attribute("aria-checked") == "true"
+            page.wait_for_function(axis + " === 'vertical'")
             assert not errors, f"Browser errors: {errors}"
             browser.close()
             print(f"PASS {checks} geometry cases, mode switching, persistence, and no browser errors")
