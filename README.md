@@ -51,15 +51,21 @@ alargado. Abajo a la derecha tiene cuatro botones:
 | **centrar** (la mirita) | vuelve a encuadrar el mapa en la hoja — igual que hacer doble clic sobre él |
 | **ampliar** (las flechas) | el mapa pasa a ocupar la ventana entera, blanco de borde a borde y sin marcos, desde el primer momento; `Esc`, el mismo botón o un clic en el borde para volver |
 
-### Cuadro sinóptico, mapa conceptual o mapa mental
+### Cuadro sinóptico, mapa conceptual, mapa mental o línea del tiempo
 
-Arriba de **¿Cómo se usa?** eliges el tipo de mapa. El mismo texto sirve para los tres:
+Arriba de **¿Cómo se usa?** eliges el tipo de mapa. El mismo texto sirve para los cuatro:
 
 | tipo | cómo se ve |
 |---|---|
 | **Cuadro sinóptico** | de izquierda a derecha, con ramas curvas que se abren como llaves (el de markmap) |
 | **Mapa conceptual** | de arriba hacia abajo, con cajas y líneas en ángulo, como un organigrama |
 | **Mapa mental** | la idea central al medio y ramas curvas que se abren a izquierda y derecha |
+| **Línea del tiempo** | los eventos en orden sobre un eje, con su fecha y una tarjeta con los detalles |
+
+Mientras no escribas nada, el editor muestra un ejemplo distinto para cada tipo,
+pensado para lucir su forma (una clasificación, un árbol de conceptos, una idea
+central con ramas, eventos con fecha). En cuanto escribes o subes un archivo, tu
+texto se queda aunque cambies de tipo o de idioma.
 
 En el conceptual, cada rama principal lleva su color. Un mapa chico va todo lado a
 lado; si uno grande quedaría más ancho que una hoja, sus grupos se van plegando en
@@ -78,6 +84,27 @@ aumenta el espacio entre nodos hermanos y la distancia al siguiente nivel;
 del mismo lado. El diseño se conserva al descargar SVG, PNG o PDF vectorial.
 
 ![Mapa mental de integración con ramas curvas a ambos lados del centro](docs/mapa-mental.png)
+
+En la línea del tiempo, `#` es el título y cada `##` (o cada viñeta del primer
+nivel) es un evento, en el orden en que lo escribes. Si empieza con una fecha, la
+fecha va en una etiqueta de color sobre el eje y el resto es el título de su
+tarjeta; lo que va debajo del evento son los detalles. La fecha se reconoce así:
+
+| escribes | fecha | título |
+|---|---|---|
+| `## 1810 — Grito de Dolores` (o `–`, `:`, `\|`, ` - `) | 1810 | Grito de Dolores |
+| `## 1492 Llegada de Colón` | 1492 | Llegada de Colón |
+| `## 1914-1918 Primera Guerra` | 1914-1918 | Primera Guerra |
+| `## 27 de septiembre de 1821: Entrada` | 27 de septiembre de 1821 | Entrada |
+| `## Siglo XIX` | Siglo XIX | (solo los detalles) |
+| `## Infancia` | (un punto en el eje) | Infancia |
+
+Las tarjetas se alternan a un lado y otro del eje. La línea va horizontal mientras
+no quede más de tres veces más ancha que alta; si no, se pone vertical. En
+**Ajustes**, *Dirección* la fija en horizontal o vertical, *Separación entre
+ramas* aleja las tarjetas y *Aire entre ramas principales* separa los eventos
+sobre el eje. Con este tipo, el prompt de **¿Cómo se usa?** pide a la IA los
+eventos en orden y con su fecha.
 
 La elección se recuerda para la próxima vez. El CLI de Python solo hace cuadros
 sinópticos.
@@ -243,6 +270,7 @@ entregas la tarea ya en PDF.
 | `docs/i18n.js` | los textos en español e inglés |
 | `docs/concept.js` | el mapa conceptual (de arriba hacia abajo) |
 | `docs/mindmap.js` | el mapa mental (ramas curvas a ambos lados del centro) |
+| `docs/timeline.js` | la línea del tiempo (eventos con fecha sobre un eje) |
 | `docs/motor.js` | el exportador en el navegador: SVG, PNG, PDF y unir con la tarea |
 | `docs/spacing.js` | el aire entre ramas (lo comparten la página y el CLI) |
 | `markmap2pdf.py` | el CLI (renderiza y recorta con Chromium) |
@@ -250,6 +278,7 @@ entregas la tarea ya en PDF.
 | `setup.sh` | instala lo que necesita el CLI |
 | `ejemplo.md` | mapa de prueba |
 | `tests/mindmap_browser.py` | pruebas de distribución del mapa mental y cambio entre modos |
+| `tests/timeline_browser.py` | pruebas de fechas, distribución y dirección de la línea del tiempo |
 
 La versión anterior, con la interfaz servida por Python (FastAPI + Chromium),
 sigue en la rama [`version-python`](https://github.com/AmiyaMihari/Markmap-to-PDF/tree/version-python).
@@ -292,20 +321,22 @@ files.download('mapa.pdf')
 
 ---
 
-## Comprobar el mapa mental
+## Comprobar el mapa mental y la línea del tiempo
 
 Después de `bash setup.sh`, ejecuta:
 
 ```bash
 .venv/bin/python tests/mindmap_browser.py
+.venv/bin/python tests/timeline_browser.py
 ```
 
-La prueba abre Chromium sin ventana y un servidor local temporal. Comprueba
-solapamientos, encuadre, distribución determinista, textos largos, ramas
-desbalanceadas, ajustes de espaciado y cambios entre los tres modos. Ejecuta
-21 combinaciones de contenido y espaciado, además de comprobar que el tipo de
-mapa se conserve al recargar y que no haya errores de JavaScript. Requiere
-conexión para cargar las dependencias del CDN que usa la página.
+Cada prueba abre Chromium sin ventana y un servidor local temporal. Comprueban
+solapamientos, encuadre, distribución determinista, textos largos, ajustes de
+espaciado y cambios entre los modos, que el tipo de mapa se conserve al recargar
+y que no haya errores de JavaScript. La del mapa mental corre 21 combinaciones
+de contenido y espaciado; la de la línea del tiempo, 12 formatos de fecha y 63
+combinaciones de contenido, dirección y espaciado. Requieren conexión para cargar
+las dependencias del CDN que usa la página.
 
 ---
 

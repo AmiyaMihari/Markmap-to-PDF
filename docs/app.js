@@ -6,7 +6,8 @@ let replTree = null, replId = 0;
 // 'synoptic' = cuadro sinoptico (markmap, de izquierda a derecha, como llaves)
 // 'concept'  = mapa conceptual (concept.js, de arriba hacia abajo)
 // 'mind'     = mapa mental (mindmap.js, ramas curvas a ambos lados de la idea central)
-const MODES = ['synoptic', 'concept', 'mind'];
+// 'timeline' = linea del tiempo (timeline.js, eventos en orden sobre un eje)
+const MODES = ['synoptic', 'concept', 'mind', 'timeline'];
 let mode = 'synoptic';
 try {
   const saved = localStorage.getItem('mapType');
@@ -14,8 +15,8 @@ try {
   // antes se guardaba en 'mode', y 'mind' era el de markmap (hoy cuadro sinoptico)
   else if (localStorage.getItem('mode') === 'concept') mode = 'concept';
 } catch (e) { /* cuadro sinoptico */ }
-// el dibujante de cada tipo; los tres se usan igual
-const mapClass = m => ({concept: ConceptMap, mind: MindMap})[m] || markmap.Markmap;
+// el dibujante de cada tipo; todos se usan igual
+const mapClass = m => ({concept: ConceptMap, mind: MindMap, timeline: Timeline})[m] || markmap.Markmap;
 
 /* ══════════════ vista previa en vivo ══════════════ */
 const T = new markmap.Transformer();
@@ -35,6 +36,7 @@ function mapOpts(res){
     o = markmap.deriveOptions(res.frontmatter.markmap);
   o.duration = 0;
   if (o.initialExpandLevel == null || o.initialExpandLevel === 0) o.initialExpandLevel = -1;
+  o.timelineDir = $('#tlDir').value;          // horizontal, vertical o automatica
   // el mismo aire que aplicara el exportador -> la vista previa no miente
   return window.mmSpacing ? window.mmSpacing.opts(air('spacing'), air('gap'), o) : o;
 }
@@ -53,7 +55,7 @@ function mdText(){
 // mensaje de error en el idioma de la pagina
 function errText(e){ return e && e.code ? t('err.' + e.code) : (e && e.message) || t('err.generic'); }
 function source(){
-  const air_ = `${air('spacing')}:${air('gap')}`;
+  const air_ = `${air('spacing')}:${air('gap')}:${$('#tlDir').value}`;
   if (replTree){
     const o = mapOpts({}), base = markmap.defaultOptions.color;
     o.color = n => (n.payload && n.payload.__c) || base(n);   // sus colores
@@ -172,7 +174,7 @@ function hint(){
 addEventListener('resize', fitPaper);
 $('#pad').addEventListener('input', fitPaper);
 // el espaciado cambia el layout: hay que volver a dibujar el mapa
-['#spacing','#gap'].forEach(sel => $(sel).addEventListener('input', redraw));
+['#spacing','#gap','#tlDir'].forEach(sel => $(sel).addEventListener('input', redraw));
 // Red de seguridad: recentrar siempre que la hoja cambie de tamano.
 if (window.ResizeObserver)
   new ResizeObserver(() => recenter()).observe($('#paper'));
@@ -562,6 +564,13 @@ const modesBox = $('.modes');
 function showMode(){
   modesBox.dataset.active = mode;
   modesBox.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === mode)));
+  $('#tlDirRow').classList.toggle('hidden', mode !== 'timeline');   // solo le sirve a la linea del tiempo
+  /* Cada tipo trae su ejemplo. Un textarea que nadie ha tocado sigue a su
+     texto de fabrica: cambiarlo aqui cambia el ejemplo, y si la persona ya
+     escribio (o subio un archivo) lo suyo se queda. i18n.js usa la misma
+     clave para cambiarlo de idioma. */
+  md.dataset.i18n = 'md.example.' + mode;
+  md.textContent = t(md.dataset.i18n);
 }
 modesBox.querySelectorAll('button').forEach(b => b.onclick = () => {
   if (b.dataset.mode === mode) return;
@@ -571,7 +580,8 @@ modesBox.querySelectorAll('button').forEach(b => b.onclick = () => {
 });
 
 /* ══════════════ prompt para IA ══════════════ */
-const promptText = () => t('guide.prompt', {kind: t('kind.' + mode)});
+// la linea del tiempo tiene sus propias reglas (fechas y orden)
+const promptText = () => mode === 'timeline' ? t('guide.promptTimeline') : t('guide.prompt', {kind: t('kind.' + mode)});
 function showPrompt(){ $('#aiPrompt').textContent = promptText(); }
 $('#copyPrompt').onclick = async () => {
   const btn = $('#copyPrompt'), lbl = btn.querySelector('span'), text = promptText();

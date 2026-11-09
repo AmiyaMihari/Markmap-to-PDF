@@ -29,7 +29,6 @@
 .mg-text.left{text-align:right}
 .mg-text.d0,.mg-text.d1{text-align:center}
 .mg-text p{margin:0}
-.mg-text ul,.mg-text ol{margin:0;padding-left:20px;text-align:left}
 .mg-text a{color:#176ca5;text-decoration:underline}
 .mg-text.d0 a{color:#b8e2ff}
 .mg-text code{padding:.1em .3em;font-size:calc(1em - 2px);color:#425268;background:#edf1f5;border-radius:3px}
@@ -112,7 +111,6 @@
 
       nodes.forEach(n => {
         n.g = el('g', 'mg-node');
-        n.g.setAttribute('data-depth', n.depth);
         boxes.appendChild(n.g);
         if (n === center && dot) {
           const c = el('circle');
@@ -189,7 +187,7 @@
         x2 = Math.max(x2, x); y2 = Math.max(y2, y);
       };
       nodes.forEach(n => {
-        attrs(n.g, {transform: `translate(${f1(n.x)},${f1(n.y)})`, 'data-side': n.side});
+        attrs(n.g, {transform: `translate(${f1(n.x)},${f1(n.y)})`});
         if (n.div) {
           n.div.classList.toggle('left', n.side < 0);
           if (n.depth === 1) n.div.style.color = d3.color(d3.interpolateRgb(n.color, CENTER)(0.38)).formatHex();

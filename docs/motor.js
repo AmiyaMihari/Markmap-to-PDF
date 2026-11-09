@@ -104,8 +104,9 @@
     svg.setAttribute('height', '1200');
     stageEl().appendChild(svg);
     // el mismo dibujante que la vista previa: markmap (cuadro sinoptico), el
-    // mapa conceptual o el mapa mental
-    const Map = {concept: global.ConceptMap, mind: global.MindMap}[src.mode] || global.markmap.Markmap;
+    // mapa conceptual, el mapa mental o la linea del tiempo
+    const Map = {concept: global.ConceptMap, mind: global.MindMap, timeline: global.Timeline}[src.mode] ||
+      global.markmap.Markmap;
     const mm = new Map(svg, Object.assign({}, src.opts, {duration: 0, zoom: false, pan: false}));
     await mm.setData(src.root);
     const g = svg.querySelector('g');
@@ -325,7 +326,7 @@
         const v = k => el[k].baseVal.value;
         d = `M${v('x1')} ${v('y1')}L${v('x2')} ${v('y2')}`;
       } else if (tag === 'rect') {
-        // las cajas de los mapas conceptual y mental, con sus esquinas redondeadas
+        // las cajas y etiquetas, con sus esquinas redondeadas
         const v = k => el[k].baseVal.value;
         const x = v('x'), y = v('y'), w = v('width'), h = v('height');
         const r = Math.min(v('rx') || v('ry') || 0, w / 2, h / 2);
@@ -334,12 +335,6 @@
                 `A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}` +
                 `V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`
               : `M${x} ${y}H${x + w}V${y + h}H${x}Z`;
-      } else if (tag === 'ellipse') {
-        // los nodos del mapa mental
-        const v = k => el[k].baseVal.value;
-        const cx = v('cx'), cy = v('cy'), rx = v('rx'), ry = v('ry');
-        if (!rx || !ry) return;
-        d = `M${cx - rx} ${cy}A${rx} ${ry} 0 1 0 ${cx + rx} ${cy}A${rx} ${ry} 0 1 0 ${cx - rx} ${cy}Z`;
       } else {
         const cx = el.cx.baseVal.value, cy = el.cy.baseVal.value, rr = el.r.baseVal.value;
         if (!rr) return;
@@ -446,7 +441,8 @@
     // en el orden del SVG, para que lo de encima quede encima
     const sel = 'path.markmap-link, g.markmap-node > line, g.markmap-node > circle, g.markmap-node > foreignObject, ' +
                 'path.cm-link, g.cm-node > rect, g.cm-node > foreignObject, ' +
-                'path.mg-link, g.mg-node > rect, g.mg-node > ellipse, g.mg-node > circle, g.mg-node > foreignObject';
+                'path.mg-link, g.mg-node > rect, g.mg-node > circle, g.mg-node > foreignObject, ' +
+                'g.tl-lines > path, g.tl-node > rect, g.tl-node > circle, g.tl-node > foreignObject';
     for (const el of r.g.querySelectorAll(sel)) {
       const tag = el.localName;
       if (tag === 'foreignObject') await foreign(el);

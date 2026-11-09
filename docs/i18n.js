@@ -20,14 +20,15 @@
     'mode.synoptic': 'Cuadro sinóptico',
     'mode.concept': 'Mapa conceptual',
     'mode.mind': 'Mapa mental',
-    'kind.synoptic': 'cuadro sinóptico',
-    'kind.concept': 'mapa conceptual',
-    'kind.mind': 'mapa mental',
+    'mode.timeline': 'Línea del tiempo',
+    'kind.synoptic': 'un cuadro sinóptico',
+    'kind.concept': 'un mapa conceptual',
+    'kind.mind': 'un mapa mental',
 
     'guide.title': '¿Cómo se usa?',
     'guide.hint': 'el formato del mapa y un prompt para IA',
     'guide.format': 'El formato',
-    'guide.formatIntro': 'Cada línea es un nodo, y el mismo texto sirve para los tres tipos de mapa. Lo que pones al inicio decide dónde va:',
+    'guide.formatIntro': 'Cada línea es un nodo, y el mismo texto sirve para los cuatro tipos de mapa. Lo que pones al inicio decide dónde va:',
     'guide.h1': 'el tema central (solo uno)',
     'guide.h2': 'las ramas principales',
     'guide.h3': 'los subtemas de cada rama',
@@ -58,7 +59,7 @@
     'guide.copy': 'Copiar prompt',
     'guide.copied': '¡Copiado!',
     'guide.prompt':
-      'Hazme un {kind} sobre: [ESCRIBE AQUÍ EL TEMA O PEGA TUS APUNTES]\n' +
+      'Hazme {kind} sobre: [ESCRIBE AQUÍ EL TEMA O PEGA TUS APUNTES]\n' +
       '\n' +
       'Respóndeme solo con el mapa en Markdown compatible con markmap, dentro de un ' +
       'bloque de código, siguiendo estas reglas:\n' +
@@ -70,23 +71,113 @@
       '4 espacios al inicio.\n' +
       '- Frases cortas, de unas 10 palabras como máximo, sin párrafos.\n' +
       '- Sin texto antes ni después del bloque, sin tablas, sin imágenes y sin emojis.',
+    'guide.promptTimeline':
+      'Hazme una línea del tiempo sobre: [ESCRIBE AQUÍ EL TEMA O PEGA TUS APUNTES]\n' +
+      '\n' +
+      'Respóndeme solo con la línea del tiempo en Markdown compatible con markmap, dentro ' +
+      'de un bloque de código, siguiendo estas reglas:\n' +
+      '- Una sola línea con # para el título.\n' +
+      '- Un ## por cada evento, en orden cronológico (entre 4 y 10), que empiece con su ' +
+      'fecha, una raya y un título corto. Por ejemplo: ## 1810 — Inicio de la Independencia\n' +
+      '- Debajo de cada evento, de 1 a 3 viñetas con - que lo expliquen.\n' +
+      '- Frases cortas, de unas 10 palabras como máximo, sin párrafos.\n' +
+      '- Sin texto antes ni después del bloque, sin tablas, sin imágenes y sin emojis.',
+    'guide.tlCode': '## 1810 — …',
+    'guide.tl': 'en la línea del tiempo, cada ## es un evento; si empieza con su fecha, la fecha va sobre el eje',
 
     'card.map': 'Tu mapa',
     'tab.write': 'Escribir',
     'tab.file': 'Subir archivo',
     'md.placeholder': '# Título del mapa\n\n## Tema 1\n- Idea\n- Otra idea',
-    'md.example':
-      '# Ambiente de Trabajo\n\n' +
-      '## 1. Diseño de Arquitectura\n' +
-      '### Principios Clave\n' +
-      '- Modularidad\n' +
-      '- Alta cohesión y bajo acoplamiento\n' +
-      '### Niveles Estructurales\n' +
-      '- Subsistemas\n' +
-      '- Módulos\n' +
-      '- Componentes\n\n' +
-      '## 2. Proceso de Desarrollo\n' +
-      '- Cascada, Ágil, DevOps e Incremental',
+    // el ejemplo del editor, uno por tipo de mapa
+    'md.example.synoptic':
+      '# Clasificación de los seres vivos\n' +
+      '\n' +
+      '## Animales\n' +
+      '### Vertebrados\n' +
+      '- Mamíferos\n' +
+      '- Aves\n' +
+      '- Peces\n' +
+      '### Invertebrados\n' +
+      '- Insectos\n' +
+      '- Moluscos\n' +
+      '\n' +
+      '## Plantas\n' +
+      '### Con flor\n' +
+      '- Árboles frutales\n' +
+      '- Pastos\n' +
+      '### Sin flor\n' +
+      '- Helechos\n' +
+      '- Musgos\n' +
+      '\n' +
+      '## Hongos\n' +
+      '- Levaduras\n' +
+      '- Mohos\n' +
+      '- Setas',
+    'md.example.concept':
+      '# El ecosistema\n' +
+      '\n' +
+      '## Factores bióticos\n' +
+      '### Productores\n' +
+      '- Plantas y algas\n' +
+      '### Consumidores\n' +
+      '- Herbívoros\n' +
+      '- Carnívoros\n' +
+      '### Descomponedores\n' +
+      '- Hongos y bacterias\n' +
+      '\n' +
+      '## Factores abióticos\n' +
+      '### Clima\n' +
+      '- Temperatura\n' +
+      '- Lluvia\n' +
+      '### Suelo\n' +
+      '- Minerales',
+    'md.example.mind':
+      '# Técnicas de estudio\n' +
+      '\n' +
+      '## Organización\n' +
+      '- Horario fijo\n' +
+      '- Lugar sin distracciones\n' +
+      '\n' +
+      '## Memoria\n' +
+      '- Repaso espaciado\n' +
+      '- Mnemotecnia\n' +
+      '- Explicarlo a alguien más\n' +
+      '\n' +
+      '## Comprensión\n' +
+      '- Mapas y esquemas\n' +
+      '- Resúmenes con tus palabras\n' +
+      '\n' +
+      '## Bienestar\n' +
+      '- Dormir bien\n' +
+      '- Pausas cada 25 minutos\n' +
+      '\n' +
+      '## Práctica\n' +
+      '- Exámenes de prueba\n' +
+      '- Resolver ejercicios',
+    'md.example.timeline':
+      '# Historia de la computación\n' +
+      '\n' +
+      '## 1936 — Máquina de Turing\n' +
+      '- Modelo teórico de la computación\n' +
+      '\n' +
+      '## 1946 — ENIAC\n' +
+      '- Primera computadora electrónica de uso general\n' +
+      '\n' +
+      '## 1971: Primer microprocesador\n' +
+      '- Intel 4004\n' +
+      '\n' +
+      '## 1981 — PC de IBM\n' +
+      '- La computadora llega a las casas\n' +
+      '\n' +
+      '## 1991 — World Wide Web\n' +
+      '- Se publica la primera página web\n' +
+      '\n' +
+      '## 2007 — Teléfonos inteligentes\n' +
+      '- Internet en el bolsillo\n' +
+      '\n' +
+      '## Hoy — Inteligencia artificial\n' +
+      '- Asistentes que entienden lenguaje natural',
     'drop.map': 'Arrastra tu .md o el .html de markmap',
     'drop.or': 'o haz clic para elegirlo',
     'file.used': 'se usará este archivo',
@@ -115,6 +206,10 @@
     'set.spacingUnit': 'px entre nodos',
     'set.gap': 'Aire entre ramas principales',
     'set.gapUnit': 'px extra, solo en el primer nivel',
+    'set.tlDir': 'Dirección',
+    'set.tlAuto': 'automática, según el tamaño',
+    'set.tlH': 'horizontal',
+    'set.tlV': 'vertical',
     'set.pad': 'Margen del mapa',
     'set.padUnit': 'px alrededor',
     'set.margin': 'Margen de la hoja',
@@ -170,14 +265,15 @@
     'mode.synoptic': 'Brace map',
     'mode.concept': 'Concept map',
     'mode.mind': 'Mind map',
-    'kind.synoptic': 'brace map (synoptic chart)',
-    'kind.concept': 'concept map',
-    'kind.mind': 'mind map',
+    'mode.timeline': 'Timeline',
+    'kind.synoptic': 'a brace map (synoptic chart)',
+    'kind.concept': 'a concept map',
+    'kind.mind': 'a mind map',
 
     'guide.title': 'How does it work?',
     'guide.hint': 'the map format and a prompt for AI',
     'guide.format': 'The format',
-    'guide.formatIntro': 'Each line is a node, and the same text works for all three map types. What you put at the start decides where it goes:',
+    'guide.formatIntro': 'Each line is a node, and the same text works for all four map types. What you put at the start decides where it goes:',
     'guide.h1': 'the central topic (only one)',
     'guide.h2': 'the main branches',
     'guide.h3': 'the subtopics of each branch',
@@ -208,7 +304,7 @@
     'guide.copy': 'Copy prompt',
     'guide.copied': 'Copied!',
     'guide.prompt':
-      'Make me a {kind} about: [WRITE THE TOPIC HERE OR PASTE YOUR NOTES]\n' +
+      'Make me {kind} about: [WRITE THE TOPIC HERE OR PASTE YOUR NOTES]\n' +
       '\n' +
       'Reply only with the map in markmap-compatible Markdown, inside a code block, ' +
       'following these rules:\n' +
@@ -220,23 +316,113 @@
       'at the start.\n' +
       '- Short phrases, about 10 words at most, no paragraphs.\n' +
       '- No text before or after the block, no tables, no images and no emojis.',
+    'guide.promptTimeline':
+      'Make me a timeline about: [WRITE THE TOPIC HERE OR PASTE YOUR NOTES]\n' +
+      '\n' +
+      'Reply only with the timeline in markmap-compatible Markdown, inside a code block, ' +
+      'following these rules:\n' +
+      '- A single line with # for the title.\n' +
+      '- One ## per event, in chronological order (between 4 and 10), starting with its ' +
+      'date, a dash and a short title. For example: ## 1969 — Moon landing\n' +
+      '- Under each event, 1 to 3 bullets with - that explain it.\n' +
+      '- Short phrases, about 10 words at most, no paragraphs.\n' +
+      '- No text before or after the block, no tables, no images and no emojis.',
+    'guide.tlCode': '## 1969 — …',
+    'guide.tl': 'in the timeline, each ## is an event; if it starts with its date, the date goes on the axis',
 
     'card.map': 'Your map',
     'tab.write': 'Write',
     'tab.file': 'Upload file',
     'md.placeholder': '# Map title\n\n## Topic 1\n- Idea\n- Another idea',
-    'md.example':
-      '# Work Environment\n\n' +
-      '## 1. Architecture Design\n' +
-      '### Key Principles\n' +
-      '- Modularity\n' +
-      '- High cohesion and low coupling\n' +
-      '### Structural Levels\n' +
-      '- Subsystems\n' +
-      '- Modules\n' +
-      '- Components\n\n' +
-      '## 2. Development Process\n' +
-      '- Waterfall, Agile, DevOps and Incremental',
+    // el ejemplo del editor, uno por tipo de mapa
+    'md.example.synoptic':
+      '# Classification of living things\n' +
+      '\n' +
+      '## Animals\n' +
+      '### Vertebrates\n' +
+      '- Mammals\n' +
+      '- Birds\n' +
+      '- Fish\n' +
+      '### Invertebrates\n' +
+      '- Insects\n' +
+      '- Mollusks\n' +
+      '\n' +
+      '## Plants\n' +
+      '### Flowering\n' +
+      '- Fruit trees\n' +
+      '- Grasses\n' +
+      '### Non-flowering\n' +
+      '- Ferns\n' +
+      '- Mosses\n' +
+      '\n' +
+      '## Fungi\n' +
+      '- Yeasts\n' +
+      '- Molds\n' +
+      '- Mushrooms',
+    'md.example.concept':
+      '# The ecosystem\n' +
+      '\n' +
+      '## Biotic factors\n' +
+      '### Producers\n' +
+      '- Plants and algae\n' +
+      '### Consumers\n' +
+      '- Herbivores\n' +
+      '- Carnivores\n' +
+      '### Decomposers\n' +
+      '- Fungi and bacteria\n' +
+      '\n' +
+      '## Abiotic factors\n' +
+      '### Climate\n' +
+      '- Temperature\n' +
+      '- Rainfall\n' +
+      '### Soil\n' +
+      '- Minerals',
+    'md.example.mind':
+      '# Study techniques\n' +
+      '\n' +
+      '## Organization\n' +
+      '- Fixed schedule\n' +
+      '- Distraction-free space\n' +
+      '\n' +
+      '## Memory\n' +
+      '- Spaced repetition\n' +
+      '- Mnemonics\n' +
+      '- Explain it to someone\n' +
+      '\n' +
+      '## Understanding\n' +
+      '- Maps and outlines\n' +
+      '- Summaries in your own words\n' +
+      '\n' +
+      '## Well-being\n' +
+      '- Sleep well\n' +
+      '- Breaks every 25 minutes\n' +
+      '\n' +
+      '## Practice\n' +
+      '- Practice exams\n' +
+      '- Solve exercises',
+    'md.example.timeline':
+      '# History of computing\n' +
+      '\n' +
+      '## 1936 — Turing machine\n' +
+      '- Theoretical model of computation\n' +
+      '\n' +
+      '## 1946 — ENIAC\n' +
+      '- First general-purpose electronic computer\n' +
+      '\n' +
+      '## 1971: First microprocessor\n' +
+      '- Intel 4004\n' +
+      '\n' +
+      '## 1981 — IBM PC\n' +
+      '- Computers arrive at home\n' +
+      '\n' +
+      '## 1991 — World Wide Web\n' +
+      '- The first web page goes online\n' +
+      '\n' +
+      '## 2007 — Smartphones\n' +
+      '- The internet in your pocket\n' +
+      '\n' +
+      '## Today — Artificial intelligence\n' +
+      '- Assistants that understand natural language',
     'drop.map': 'Drop your .md or the markmap .html',
     'drop.or': 'or click to choose it',
     'file.used': 'this file will be used',
@@ -265,6 +451,10 @@
     'set.spacingUnit': 'px between nodes',
     'set.gap': 'Space between main branches',
     'set.gapUnit': 'extra px, first level only',
+    'set.tlDir': 'Direction',
+    'set.tlAuto': 'automatic, based on size',
+    'set.tlH': 'horizontal',
+    'set.tlV': 'vertical',
     'set.pad': 'Map margin',
     'set.padUnit': 'px around',
     'set.margin': 'Sheet margin',
