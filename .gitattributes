@@ -1,0 +1,3 @@
+# GitHub ignora docs/ al contar los lenguajes (supone que es documentación),
+# pero aquí vive toda la página web: que cuente como código.
+docs/** linguist-documentation=false

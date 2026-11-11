@@ -7,6 +7,8 @@
      Motor.pdf(r, pad, title)        PDF vectorial, con texto seleccionable
      Motor.merge(mapa, bytes, ...)   el PDF de la tarea + la hoja del mapa
      Motor.readRepl(html)            el arbol de un .html exportado del REPL
+     Motor.settle(g)                 espera a que markmap termine de acomodar los
+                                     nodos (los coloca un cuadro despues de dibujar)
 
    Las librerias pesadas (pdf-lib, pdf.js, fontkit y la fuente de respaldo)
    se descargan solo cuando hacen falta, y una sola vez. */

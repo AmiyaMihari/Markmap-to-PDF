@@ -214,6 +214,10 @@
     'set.name': 'Nombre del archivo',
 
     'pv.title': 'Vista previa',
+    'gh.label': 'Amiya Mihari en GitHub',
+    'kofi': 'Donar en Ko-fi',
+    'kofi.note': '¿Te sirvió? Es gratis, y puedes apoyarlo con una donación.',
+    'kofi.thanks': '¡Gracias por donar!',
     'pv.dir': 'Dirección de la línea del tiempo',
     'pv.dirH': 'Horizontal',
     'pv.dirV': 'Vertical',
@@ -458,6 +462,10 @@
     'set.name': 'File name',
 
     'pv.title': 'Preview',
+    'gh.label': 'Amiya Mihari on GitHub',
+    'kofi': 'Donate on Ko-fi',
+    'kofi.note': 'Found it useful? It’s free, and you can support it with a donation.',
+    'kofi.thanks': 'Thank you for donating!',
     'pv.dir': 'Timeline direction',
     'pv.dirH': 'Horizontal',
     'pv.dirV': 'Vertical',

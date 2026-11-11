@@ -99,7 +99,8 @@ function renderMini(){
   if (!svg || !hasMap()) return;
   try{
     const {root, opts} = source();
-    const o = Object.assign(opts, {fitRatio: 0.92});
+    // la miniatura es fija, como las de las paginas: sin zoom ni arrastre con la rueda
+    const o = Object.assign(opts, {fitRatio: 0.92, zoom: false, pan: false});
     if (!mini || mini.svg.node() !== svg || miniMode !== mode){
       if (mini && mini.svg.node() === svg) mini.destroy();
       svg.innerHTML = ''; mini = mapClass(mode).create(svg, o, root); miniMode = mode;
