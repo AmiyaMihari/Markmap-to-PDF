@@ -51,7 +51,7 @@ out wide or tall. It has four buttons in the bottom-right corner:
 
 | button | what it does |
 |---|---|
-| **−** / **+** | zoom out and in. Once you zoom past the fit, the sheet stops cropping and the map spreads over the whole tray, on a white background |
+| **−** / **+** | zoom out and in. As soon as you zoom (with these buttons or the wheel) or drag the map, the sheet stops cropping and the whole tray turns white, so the map can go anywhere |
 | **center** (the crosshair) | fits the map back into the sheet, same as double-clicking it |
 | **expand** (the arrows) | the map takes up the whole window, white edge to edge and without frames; `Esc`, the same button or a click on the border to go back |
 
@@ -71,10 +71,15 @@ each type, chosen to show off its shape (a classification, a tree of concepts, a
 central idea with branches, dated events). As soon as you type or upload a file,
 your text stays put even if you switch types or languages.
 
-In the **concept map**, each main branch gets its own color. A small map is laid
-out side by side; if a big one would end up wider than a sheet, its groups fold
-into columns under their box until the proportions fit. The main branches always
-stay side by side.
+In the **concept map**, each main branch gets its own color, and the main
+branches always stay side by side. Next to **Preview**, three buttons choose how
+the rest is laid out; your choice is remembered:
+
+| button | what it does |
+|---|---|
+| **Auto** | a small map is laid out side by side; if a big one would end up wider than a sheet, its groups fold into columns under their box until the proportions fit |
+| **Open** | every branch side by side, even if the map gets wide |
+| **Compact** | everything under the main branches hangs in columns, for a narrow, tall map |
 
 The **mind map** splits the branches between the left and the right according to
 how much room their content needs. Each subtree gets its own band, so nodes never
@@ -286,9 +291,11 @@ and how to add a new map type), see [ARCHITECTURE.md](ARCHITECTURE.md).
 | `start.sh` | opens the interface locally |
 | `setup.sh` | installs what the CLI needs |
 | `ejemplo.md` | sample map |
+| `tests/concept_browser.py` | concept map layout and layout-button tests |
 | `tests/mindmap_browser.py` | mind map layout and mode-switching tests |
 | `tests/timeline_browser.py` | timeline date, layout and direction tests |
 | `ARCHITECTURE.md` | how the code works inside |
+| `TODO.md` | ideas waiting to be built |
 | `AGENTS.md` | conventions for AI agents (and humans) working on the repo; `CLAUDE.md` points to it |
 | `LICENSE` | the license: GPL-3.0 |
 | `.gitattributes` | tells GitHub that `docs/` is code, so the language stats are right |
@@ -341,6 +348,7 @@ files.download('map.pdf')
 After `bash setup.sh`, run:
 
 ```bash
+.venv/bin/python tests/concept_browser.py
 .venv/bin/python tests/mindmap_browser.py
 .venv/bin/python tests/timeline_browser.py
 ```
@@ -348,9 +356,10 @@ After `bash setup.sh`, run:
 Each test opens a headless Chromium and a temporary local server. They check for
 overlaps, fitting, deterministic layout, long texts, spacing settings and
 switching between types, that the map type is kept after reloading, and that
-there are no JavaScript errors. The mind map test runs 21 combinations of
-content and spacing; the timeline test, 12 date formats, 42 combinations of
-content, direction and spacing, and the direction buttons. They need an internet
+there are no JavaScript errors. The concept map test runs 81 combinations of
+content, layout and spacing, and the layout buttons; the mind map test, 21
+combinations of content and spacing; the timeline test, 12 date formats, 42
+combinations of content, direction and spacing, and the direction buttons. They need an internet
 connection to load the CDN dependencies the page uses.
 
 ---

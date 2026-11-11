@@ -11,8 +11,9 @@ explains how people use it.
   install). The maintainer reviews changes there, so leave it running when you
   hand work over.
 * `bash setup.sh` creates `.venv/` with Playwright and its Chromium. Then:
+  `.venv/bin/python tests/concept_browser.py`,
   `.venv/bin/python tests/mindmap_browser.py` and
-  `.venv/bin/python tests/timeline_browser.py`. Both must pass.
+  `.venv/bin/python tests/timeline_browser.py`. All three must pass.
 * For anything visual, take Playwright screenshots and look at them: light and
   dark mode, desktop and a 375 px phone, and check there is no horizontal scroll
   (`document.documentElement.scrollWidth` equals the viewport width).

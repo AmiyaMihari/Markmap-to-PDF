@@ -57,8 +57,8 @@ at the end of `<body>`, so the page is already translated before its first paint
    `&#x2014;`, `é` as `&#xE9;`). Anything that parses node text has to decode
    them first (see `letters()` in `timeline.js`).
 3. **Source.** `source()` returns `{root, opts, mode, key}`. `opts` comes from
-   `mapOpts()`: markmap front-matter options, the two spacing settings and the
-   timeline direction. `key` identifies the drawing: if it doesn't change, the
+   `mapOpts()`: markmap front-matter options, the two spacing settings, the
+   timeline direction and the concept map layout. `key` identifies the drawing: if it doesn't change, the
    exporter reuses the last one instead of drawing again.
    If the user uploaded a markmap `.html`, `Motor.readRepl()` extracts its tree
    (with its colors) inside a sandboxed iframe, and `source()` uses that tree.
@@ -74,6 +74,13 @@ at the end of `<body>`, so the page is already translated before its first paint
 5. **Preview.** `preview()` creates the drawer once per type, then on every
    change: `setData(root)` → `Motor.settle()` → `fitPaper()`. `fitPaper()` sizes
    the sheet to the map's proportions and fits the map **once** (`recenter()`).
+   Zooming (buttons or wheel) or dragging the map switches to the **free
+   view**: `lens()` grows the sheet to the whole tray, white edge to edge, and
+   shifts the map so it stays where it was on screen. It writes the transform
+   straight to `svg.__zoom` and the drawer's `<g>`, because `zoom.transform` in
+   the middle of a drag would make d3 recompute the grabbed point from a stale
+   pointer position and the map would jump. Only `fitPaper()` (the center
+   button or a double click) brings the sheet back.
    Typing triggers `preview()` 250 ms after the last key. A single
    `ResizeObserver` on the tray refits when the window or the expanded view
    changes size, batching several notices into one frame (`queueFit()`).
@@ -93,8 +100,9 @@ class prefix: `cm`, `mg`, `tl`) and `css` (a `<style>` placed **inside** the
 
 Options they understand: `spacingVertical` and `branchGap` (the two settings),
 `color` (a function, for maps uploaded from markmap), `zoom` / `pan` (off for the
-exporter and for the thumbnail in the page strip), `fitRatio`, and
-`timelineDir` (`'horizontal'` or `'vertical'`, only the timeline).
+exporter and for the thumbnail in the page strip), `fitRatio`,
+`timelineDir` (`'horizontal'` or `'vertical'`, only the timeline) and
+`conceptLayout` (`'auto'`, `'open'` or `'compact'`, only the concept map).
 
 Each drawer is **deterministic**: the same text always gives the same drawing.
 None of them uses randomness or a physics simulation.
@@ -104,7 +112,10 @@ None of them uses randomness or a physics simulation.
 * **Concept map** (`concept.js`): top to bottom, boxes and right-angle lines.
   It measures every box once, then tries a full side-by-side layout; if it would
   be wider than `MAX_W` and more than `MAX_ASPECT` times wider than tall, it
-  folds groups of leaves into columns, step by step, until it fits.
+  folds groups of leaves into columns, step by step, until it fits. That is the
+  **Auto** layout; the buttons next to the preview can force the other two:
+  `'open'` never folds and `'compact'` folds everything under the main
+  branches.
 * **Mind map** (`mindmap.js`): main branches are split between the right and the
   left by height, keeping their order. Each subtree reserves a vertical band as
   tall as its content, so nothing overlaps and no connection crosses another
@@ -165,8 +176,16 @@ typed (or a file they loaded) stays.
 
 ## Small things worth knowing
 
-* **Saved in `localStorage`:** `lang`, `mapType`, `tlDir` (and the old `mode`
-  key, read once to migrate). Every access is wrapped in `try`.
+* **Saved in `localStorage`:** `lang`, `mapType`, `tlDir`, `cmLayout` (and the
+  old `mode` key, read once to migrate). Every access is wrapped in `try`.
+* **Dragging the map card** in the page strip: it only lifts after the pointer
+  moves 4 px (`LIFT`), so a plain click does nothing. While dragging it lives in
+  `<body>` with `position: fixed` at the top-left corner and an inline
+  `transform` that follows the pointer. Any running animation would override
+  that `transform` and leave the card in the corner, so: strip cards play their
+  entry animation (`pop`) only once (when it ends they get the `placed` class,
+  `animation: none`; moving a card in the DOM would replay it), and `lift()`
+  cancels whatever is still running (the previous landing, a keyboard move).
 * **markmap quirks handled in code:**
   * markmap's `destroy()` leaves its own `wheel` listener on the `<svg>`;
     `ConceptMap`'s constructor removes it, or switching away from the brace map
@@ -201,11 +220,12 @@ typed (or a file they loaded) stays.
 
 ## Tests
 
-`tests/mindmap_browser.py` and `tests/timeline_browser.py` start a temporary
-local server for `docs/`, open a headless Chromium with Playwright and check
-geometry (no overlaps, everything inside the fit box, deterministic output),
-date parsing, mode switching, persistence after reload and the absence of
-JavaScript errors. Run them with `.venv/bin/python tests/<file>.py` after
+`tests/concept_browser.py`, `tests/mindmap_browser.py` and
+`tests/timeline_browser.py` start a temporary local server for `docs/`, open a
+headless Chromium with Playwright and check geometry (no overlaps, everything
+inside the fit box, deterministic output), the concept map layouts, date
+parsing, mode switching, persistence after reload and the absence of JavaScript
+errors. Run them with `.venv/bin/python tests/<file>.py` after
 `bash setup.sh`. They need internet access for the CDN libraries.
 
 For visual changes, also look at the page: run `bash start.sh` and check light

@@ -355,6 +355,10 @@ body.grabbing{user-select:none; cursor:grabbing}
 .pcard.map .grip{opacity:.75}
 .pcard.map.hint{animation:pop .5s var(--spring) both, wiggle 1.3s var(--ease) .7s 2}
 @keyframes wiggle{0%,100%{transform:none}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+/* La entrada (pop) se anima una sola vez. Mover una tarjeta en la pagina la
+   repetiria, y mientras corre le gana al transform del arrastre: la tarjeta
+   se quedaba arriba a la izquierda en vez de seguir al raton. */
+.pcard.placed, .pcard.map.dragging{animation:none}
 
 .pcard.map .hnd{
   text-align:center; font-size:10px; letter-spacing:.05em; text-transform:uppercase;
@@ -411,35 +415,38 @@ details[open] .opts{animation:rise .5s var(--ease) both}
 /* el corazon late una vez al pasar el raton (nada se anima solo) */
 .kofi:hover .heart{animation:beat .6s var(--ease)}
 @keyframes beat{30%{transform:scale(1.28)} 60%{transform:scale(.94)}}
-/* el titulo y, en la linea del tiempo, los botones de direccion a su derecha */
-.pv-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 18px; min-height:34px}
+/* el titulo y, a su derecha, los botones de la linea del tiempo (direccion)
+   o del mapa conceptual (acomodo) */
+.pv-head{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 12px; margin:0 0 18px; min-height:34px}
 .pv-head h2{margin:0}
-.orient{
-  position:relative; display:inline-grid; grid-template-columns:1fr 1fr; flex:none;
+.choice{
+  position:relative; display:inline-grid; grid-auto-flow:column; grid-auto-columns:1fr; flex:none;
   padding:3px; border-radius:11px; background:rgba(120,120,128,.12);
 }
-.orient button{
+.choice button{
   position:relative; z-index:1; display:flex; align-items:center; justify-content:center; gap:6px;
   border:0; background:none; cursor:pointer; font:inherit; font-size:13px; font-weight:550;
   padding:5px 12px; border-radius:8px; color:var(--muted); transition:color .35s var(--ease);
 }
-.orient button:hover, .orient button[aria-checked="true"]{color:var(--text)}
-.orient button svg{
+.choice button:hover, .choice button[aria-checked="true"]{color:var(--text)}
+.choice button svg{
   width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.8;
   stroke-linecap:round; stroke-linejoin:round;
 }
-.orient button[aria-checked="true"] svg{color:var(--accent)}
-.orient-pill{
-  position:absolute; z-index:0; top:3px; left:3px; width:calc(50% - 3px); height:calc(100% - 6px);
+.choice button[aria-checked="true"] svg{color:var(--accent)}
+.choice-pill{
+  position:absolute; z-index:0; top:3px; left:3px; width:calc((100% - 6px) / var(--n, 2)); height:calc(100% - 6px);
   background:var(--solid); border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.11);
   transition:transform .45s var(--spring);
 }
-.orient[data-active="vertical"] .orient-pill{transform:translateX(100%)}
+.choice[data-active="vertical"] .choice-pill, .choice[data-active="open"] .choice-pill{transform:translateX(100%)}
+#cmLayout{--n:3}
+.choice[data-active="compact"] .choice-pill{transform:translateX(200%)}
 .pv-head h2{white-space:nowrap}
 /* en el celular no caben los iconos: solo el texto, mas compacto */
 @media(max-width:560px){
-  .orient button{padding:5px 9px; font-size:12.5px}
-  .orient button svg{display:none}
+  .choice button{padding:5px 9px; font-size:12.5px}
+  .choice button svg{display:none}
 }
 .tray{
   position:relative; display:flex; align-items:center; justify-content:center;
@@ -493,9 +500,9 @@ body.big-on{overflow:hidden}
 .preview-card.big .paper{box-shadow:none; border-radius:9px}
 .preview-card.big .pv-foot{margin-top:8px; padding:0 4px}
 
-/* modo lupa: en cuanto te acercas mas alla del encuadre, la hoja deja de
-   recortar y la bandeja entera se pone blanca, asi el mapa usa todo el
-   espacio disponible. El boton de centrar devuelve la hoja. */
+/* modo lupa: en cuanto mueves la vista (acercar, alejar o arrastrar), la
+   hoja deja de recortar y la bandeja entera se pone blanca, asi el mapa usa
+   todo el espacio disponible. El boton de centrar devuelve la hoja. */
 .preview-card.inspect .tray{background:var(--paper)}
 .preview-card.inspect .paper{background:none; box-shadow:none; overflow:visible}
 .preview-card.inspect #preview{overflow:visible}
@@ -816,15 +823,31 @@ button.act:disabled{opacity:.45; cursor:not-allowed}
         <div class="pv-head">
           <h2 data-i18n="pv.title">Vista previa</h2>
           <!-- solo en la linea del tiempo: hacia donde corre el eje -->
-          <div class="orient hidden" id="orient" role="radiogroup" aria-label="Dirección de la línea del tiempo" data-i18n-aria="pv.dir" data-active="horizontal">
-            <span class="orient-pill"></span>
-            <button type="button" role="radio" data-dir="horizontal" aria-checked="true">
+          <div class="choice hidden" id="orient" role="radiogroup" aria-label="Dirección de la línea del tiempo" data-i18n-aria="pv.dir" data-active="horizontal">
+            <span class="choice-pill"></span>
+            <button type="button" role="radio" data-value="horizontal" aria-checked="true">
               <svg viewBox="0 0 24 24"><path d="M3 12h15m0 0-2.5-2.5M18 12l-2.5 2.5"/><circle cx="7" cy="12" r="1.7"/><circle cx="12.5" cy="12" r="1.7"/></svg>
               <span data-i18n="pv.dirH">Horizontal</span>
             </button>
-            <button type="button" role="radio" data-dir="vertical" aria-checked="false">
+            <button type="button" role="radio" data-value="vertical" aria-checked="false">
               <svg viewBox="0 0 24 24"><path d="M12 3v15m0 0-2.5-2.5M12 18l2.5-2.5"/><circle cx="12" cy="7" r="1.7"/><circle cx="12" cy="12.5" r="1.7"/></svg>
               <span data-i18n="pv.dirV">Vertical</span>
+            </button>
+          </div>
+          <!-- solo en el mapa conceptual: plegar solo si hace falta, todo abierto o todo en columnas -->
+          <div class="choice hidden" id="cmLayout" role="radiogroup" aria-label="Acomodo del mapa conceptual" data-i18n-aria="pv.layout" data-active="auto">
+            <span class="choice-pill"></span>
+            <button type="button" role="radio" data-value="auto" aria-checked="true" title="Lo abre si cabe; si no, pliega en columnas lo que haga falta" data-i18n-title="pv.layoutAutoTip">
+              <svg viewBox="0 0 24 24"><path d="M10.5 6Q11.5 12 17 13Q11.5 14 10.5 20Q9.5 14 4 13Q9.5 12 10.5 6Z"/><path d="M18.5 2.5Q19 4.5 21 5Q19 5.5 18.5 7.5Q18 5.5 16 5Q18 4.5 18.5 2.5Z"/></svg>
+              <span data-i18n="pv.layoutAuto">Auto</span>
+            </button>
+            <button type="button" role="radio" data-value="open" aria-checked="false" title="Todas las ramas lado a lado, aunque quede ancho" data-i18n-title="pv.layoutOpenTip">
+              <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="4.5" rx="1.3"/><path d="M12 7.5V11M4 11h16M4 11v3M12 11v3M20 11v3"/><rect x="1.5" y="14" width="5" height="4.5" rx="1.3"/><rect x="9.5" y="14" width="5" height="4.5" rx="1.3"/><rect x="17.5" y="14" width="5" height="4.5" rx="1.3"/></svg>
+              <span data-i18n="pv.layoutOpen">Abierto</span>
+            </button>
+            <button type="button" role="radio" data-value="compact" aria-checked="false" title="Todo en columnas bajo cada rama principal" data-i18n-title="pv.layoutCompactTip">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="5" rx="1.5"/><path d="M6 8v10.5M6 12.5h4M6 18.5h4"/><rect x="10" y="10.5" width="11" height="4" rx="1.5"/><rect x="10" y="16.5" width="11" height="4" rx="1.5"/></svg>
+              <span data-i18n="pv.layoutCompact">Compacto</span>
             </button>
           </div>
         </div>

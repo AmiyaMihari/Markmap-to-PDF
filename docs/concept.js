@@ -12,7 +12,10 @@
    Opciones que usa (las mismas casillas de Ajustes):
      spacingVertical   separacion entre cajas hermanas
      branchGap         aire extra entre las ramas principales
-     color             color de cada rama (por defecto, el de markmap)        */
+     color             color de cada rama (por defecto, el de markmap)
+     conceptLayout     'auto' (por defecto: pliega en columnas lo que no cabe),
+                       'open' (todo lado a lado, aunque quede ancho) o
+                       'compact' (todo en columnas bajo las ramas principales) */
 (function (global) {
   'use strict';
 
@@ -196,6 +199,9 @@
          columna bajo el padre, cada uno con su propia rama debajo, como en un
          organigrama compacto. Sin esto, un mapa de apuntes normal mediria
          metros de ancho. Las ramas principales siempre van lado a lado. */
+      /* Los botones de la vista previa pueden forzarlo: 'open' nunca pliega y
+         'compact' pliega todo lo que cuelga de las ramas principales. */
+      const compact = o.conceptLayout === 'compact';
       // `inner`: n ya cuelga de una columna (su posicion la da la columna)
       function measure(n, limitGroup, inner) {
         n._w = n._nw; n._h = n._nh; n._asLeaf = false;
@@ -210,7 +216,7 @@
         // la raiz (y su cadena hasta donde se abre) nunca cuelga: son las ramas
         // principales. Dentro de una columna, un hijo unico cuelga con la misma
         // linea lateral que los demas (lado a lado haria un zigzag).
-        if (!n._top && ((inner && kids.length === 1) || (kids.length > 1 && rowW > limit))) {
+        if (!n._top && (compact || (inner && kids.length === 1) || (kids.length > 1 && rowW > limit))) {
           n._mode = 'stack';
           // lo que cuelga se vuelve a medir como "dentro de una columna"
           if (!inner) kids.forEach(k => measure(k, limitGroup, true));
@@ -228,8 +234,12 @@
       }
       /* Primero todo lado a lado (como un mapa conceptual de libro). Si eso
          queda mas ancho que una hoja razonable, se va plegando en columnas, de
-         a poco, hasta que la proporcion quepa. Un mapa chico no cambia. */
-      for (const limitGroup of [Infinity, 900, 640, 520, 420, 340, 260, 200, 0]) {
+         a poco, hasta que la proporcion quepa. Un mapa chico no cambia.
+         'open' y 'compact' se quedan con la primera medida: sin limite nada
+         se pliega, y 'compact' ya plego todo. */
+      const auto = o.conceptLayout !== 'open' && !compact;
+      const steps = auto ? [Infinity, 900, 640, 520, 420, 340, 260, 200, 0] : [Infinity];
+      for (const limitGroup of steps) {
         measure(root, limitGroup, false);
         if (root._sw <= MAX_W || root._sw <= root._sh * MAX_ASPECT) break;
       }

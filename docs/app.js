@@ -20,6 +20,14 @@ const mapClass = m => ({concept: ConceptMap, mind: MindMap, timeline: Timeline})
 // la direccion de la linea del tiempo: la elige la persona y se recuerda
 let tlDir = 'horizontal';
 try { if (localStorage.getItem('tlDir') === 'vertical') tlDir = 'vertical'; } catch (e) { /* horizontal */ }
+// el acomodo del mapa conceptual: 'auto' (pliega en columnas lo que no cabe),
+// 'open' (todo lado a lado) o 'compact' (todo en columnas bajo las ramas
+// principales); se recuerda
+let cmLayout = 'auto';
+try {
+  const saved = localStorage.getItem('cmLayout');
+  if (saved === 'open' || saved === 'compact') cmLayout = saved;
+} catch (e) { /* automatico */ }
 
 /* ══════════════ vista previa en vivo ══════════════ */
 const T = new markmap.Transformer();
@@ -40,6 +48,7 @@ function mapOpts(res){
   o.duration = 0;
   if (o.initialExpandLevel == null || o.initialExpandLevel === 0) o.initialExpandLevel = -1;
   o.timelineDir = tlDir;
+  o.conceptLayout = cmLayout;
   // el mismo aire que aplicara el exportador -> la vista previa no miente
   return window.mmSpacing ? window.mmSpacing.opts(air('spacing'), air('gap'), o) : o;
 }
@@ -58,7 +67,7 @@ function mdText(){
 // mensaje de error en el idioma de la pagina
 function errText(e){ return e && e.code ? t('err.' + e.code) : (e && e.message) || t('err.generic'); }
 function source(){
-  const air_ = `${air('spacing')}:${air('gap')}:${tlDir}`;
+  const air_ = `${air('spacing')}:${air('gap')}:${tlDir}:${cmLayout}`;
   if (replTree){
     const o = mapOpts({}), base = markmap.defaultOptions.color;
     o.color = n => (n.payload && n.payload.__c) || base(n);   // sus colores
@@ -130,13 +139,17 @@ function pageSize(){
     return {w: Math.ceil(b.width + pad*2), h: Math.ceil(b.height + pad*2)};
   }catch(e){ return null; }
 }
+// el hueco real de la bandeja: al ampliar, el margen se encoge
+function trayRoom(){
+  const tray = $('#tray'), cs = getComputedStyle(tray);
+  return {w: tray.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
+          h: tray.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom)};
+}
 async function fitPaper(){
   const sz = pageSize(); if (!sz) return;
-  const tray = $('#tray'), paper = $('#paper'), cs = getComputedStyle(tray);
-  // el hueco real de la bandeja: al ampliar, el margen se encoge
-  const maxW = tray.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  const maxH = tray.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom);
+  const paper = $('#paper'), {w: maxW, h: maxH} = trayRoom();
   if (maxW <= 0 || maxH <= 0) return;
+  pvCard.classList.remove('inspect');           // vuelve la hoja
   if (pvCard.classList.contains('big')){
     // ampliado se viene a leer el mapa, no a medir la hoja: el papel se queda
     // con la bandeja entera y el mapa entra lo mas grande que se pueda
@@ -151,26 +164,51 @@ async function fitPaper(){
     t('pv.sheet', {w: sz.w, h: sz.h, wi: (sz.w/96).toFixed(1), hi: (sz.h/96).toFixed(1)});
   await new Promise(r => requestAnimationFrame(r));
   await recenter();
+  hint();
 }
 
 const pvCard = document.querySelector('.preview-card');
 
-/* Encuadrar el mapa en la hoja y quedarnos con esa escala como referencia:
-   todo lo que pase de ahi es acercarse, y ahi la hoja estorba mas que ayuda. */
-let kFit = 0;
+/* Encuadrar el mapa en la hoja y guardar ese encuadre: es la vista previa de
+   la hoja que se imprime. En cuanto la persona mueve la vista (acerca, aleja
+   o arrastra), la hoja estorba mas que ayuda: deja de recortar y la bandeja
+   entera se vuelve papel (modo lupa). Solo centrar -el boton o doble clic-
+   devuelve la hoja. */
+let tFit = null;
 async function recenter(){
   if (!mm) return;
   await mm.fit();
-  kFit = d3.zoomTransform($('#preview')).k;
-  lens();
+  tFit = d3.zoomTransform($('#preview'));
 }
 function lens(){
-  if (!mm || !kFit) return;
+  const svg = $('#preview');
   // ampliado ya es todo papel, no hay hoja que estorbe
-  const k = d3.zoomTransform($('#preview')).k;
-  pvCard.classList.toggle('inspect',
-    !pvCard.classList.contains('big') && k > kFit * 1.02);
+  if (!mm || !mm.g || !tFit || pvCard.classList.contains('big') || pvCard.classList.contains('inspect')) return;
+  const t = d3.zoomTransform(svg);
+  if (Math.abs(t.k / tFit.k - 1) < 0.005 && Math.abs(t.x - tFit.x) < 1 && Math.abs(t.y - tFit.y) < 1) return;
+  /* La hoja crece a toda la bandeja (asi la rueda y el arrastre funcionan en
+     todo el blanco) y el mapa se corre lo mismo que se movio la hoja, para
+     que en pantalla se quede donde estaba. */
+  const a = svg.getBoundingClientRect();
+  pvCard.classList.add('inspect');
+  const room = trayRoom();
+  $('#paper').style.width = room.w + 'px';
+  $('#paper').style.height = room.h + 'px';
+  const b = svg.getBoundingClientRect();
+  const moved = d3.zoomIdentity.translate(t.x + a.left - b.left, t.y + a.top - b.top).scale(t.k);
+  /* Se pone directo, sin zoom.transform: a medio arrastre, d3 recalcularia el
+     punto agarrado con la posicion vieja del raton y el mapa brincaria. d3
+     guarda la transformacion actual en __zoom; los dibujantes la aplican a su <g>. */
+  svg.__zoom = moved;
+  mm.g.attr('transform', moved);
   hint();
+}
+// se revisa una vez por cuadro, aunque lleguen muchos eventos
+let lensQueued = false;
+function queueLens(){
+  if (lensQueued) return;
+  lensQueued = true;
+  requestAnimationFrame(() => { lensQueued = false; lens(); });
 }
 function hint(){
   $('#pvHint').textContent =
@@ -182,13 +220,15 @@ $('#pad').addEventListener('input', fitPaper);
 ['#spacing','#gap'].forEach(sel => $(sel).addEventListener('input', redraw));
 
 /* controles de la vista previa: acercar, alejar, centrar y ampliar */
-function zoom(f){ if (mm && mm.rescale){ mm.rescale(f); requestAnimationFrame(lens); } }
+// el de markmap es una transicion: hay que esperar a que termine para medir
+async function zoom(f){ if (mm && mm.rescale){ await mm.rescale(f); queueLens(); } }
 $('#zIn').onclick  = () => zoom(1.25);
 $('#zOut').onclick = () => zoom(0.8);
 $('#zFit').onclick = () => fitPaper();
 $('#preview').addEventListener('dblclick', () => fitPaper());
-// la rueda tambien acerca: hay que revisar si ya nos salimos de la hoja
-$('#preview').addEventListener('wheel', () => requestAnimationFrame(lens), {passive:true});
+// la rueda acerca o aleja y arrastrar mueve el mapa: los dos sueltan la hoja
+$('#preview').addEventListener('wheel', queueLens, {passive:true});
+$('#preview').addEventListener('pointermove', e => { if (e.buttons) queueLens(); }, {passive:true});
 
 /* ampliar: la vista previa ocupa la ventana entera (Esc o clic fuera para salir) */
 function big(on){
@@ -309,6 +349,8 @@ $('#pickMap').onchange = e => e.target.files[0] && setMap(e.target.files[0]);
 $('#pickDoc').onchange = e => e.target.files[0] && setDoc(e.target.files[0]);
 
 /* ══════════════ tira de páginas ordenable ══════════════ */
+// cada tarjeta que ya entro se queda sin animacion de entrada (ver .placed)
+strip.addEventListener('animationend', e => { if (e.animationName === 'pop') e.target.classList.add('placed'); });
 function buildStrip(pages){
   strip.innerHTML = '';
   for (let i = 1; i <= pages; i++){
@@ -338,6 +380,8 @@ function buildStrip(pages){
     e.preventDefault();
     const sib = d < 0 ? mapCard.previousElementSibling : mapCard.nextElementSibling;
     if (!sib) return;
+    mapCard.classList.remove('hint');
+    [mapCard, sib].forEach(el => el.classList.add('placed'));
     flip(() => d < 0 ? strip.insertBefore(mapCard, sib) : strip.insertBefore(sib, mapCard));
     mapCard.focus();                         // moverla en el DOM le quita el foco
     updateOrder();
@@ -380,31 +424,40 @@ function flip(mutate){
   }
 }
 let ph = null, drag = null;
+// la tarjeta se levanta cuando el raton ya se movio esto (px): un clic suelto no la mueve
+const LIFT = 4;
 function wireDrag(){
   mapCard.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     e.preventDefault();
-    mapCard.classList.remove('hint');
-
-    const r = mapCard.getBoundingClientRect();
-    drag = {dx: e.clientX - r.left, dy: e.clientY - r.top};
-
-    ph = document.createElement('div');
-    ph.className = 'slot';
-    ph.style.width = r.width + 'px';
-    ph.style.height = r.height + 'px';
-    strip.insertBefore(ph, mapCard);
-
-    mapCard.style.width = r.width + 'px';
-    mapCard.classList.add('dragging');
-    document.body.appendChild(mapCard);      // fuera del flujo de la tira
-    document.body.classList.add('grabbing');
-    follow(e.clientX, e.clientY);
-
+    drag = {x: e.clientX, y: e.clientY, lifted: false};
     addEventListener('pointermove', onMove);
-    addEventListener('pointerup', onUp, {once:true});
-    addEventListener('pointercancel', onUp, {once:true});
+    addEventListener('pointerup', onUp);
+    addEventListener('pointercancel', onUp);
   });
+}
+function lift(){
+  mapCard.classList.remove('hint');
+  mapCard.classList.add('placed');
+  // donde se ve ahora, aunque todavia venga animandose
+  const r = mapCard.getBoundingClientRect();
+  /* Una animacion que siga corriendo (el aterrizaje del arrastre anterior o
+     el reacomodo con el teclado) le gana al transform del arrastre: la
+     tarjeta se iba arriba a la izquierda hasta que terminaba. Se cancela
+     despues de medir, para que no brinque. */
+  mapCard.getAnimations().forEach(a => a.cancel());
+  Object.assign(drag, {dx: drag.x - r.left, dy: drag.y - r.top, lifted: true});
+
+  ph = document.createElement('div');
+  ph.className = 'slot';
+  ph.style.width = r.width + 'px';
+  ph.style.height = r.height + 'px';
+  strip.insertBefore(ph, mapCard);
+
+  mapCard.style.width = r.width + 'px';
+  mapCard.classList.add('dragging');
+  document.body.appendChild(mapCard);        // fuera del flujo de la tira
+  document.body.classList.add('grabbing');
 }
 function follow(x, y){
   mapCard.style.transform =
@@ -412,6 +465,10 @@ function follow(x, y){
 }
 function onMove(e){
   if (!drag) return;
+  if (!drag.lifted){
+    if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < LIFT) return;
+    lift();
+  }
   follow(e.clientX, e.clientY);
 
   const r = strip.getBoundingClientRect();          // auto-scroll en los bordes
@@ -427,6 +484,9 @@ function onMove(e){
 function onUp(){
   if (!drag) return;
   removeEventListener('pointermove', onMove);
+  removeEventListener('pointerup', onUp);
+  removeEventListener('pointercancel', onUp);
+  if (!drag.lifted){ drag = null; return; }  // fue un clic: no hay nada que acomodar
   const from = mapCard.getBoundingClientRect();
 
   mapCard.classList.remove('dragging');
@@ -574,7 +634,9 @@ const modesBox = $('.modes');
 function showMode(){
   modesBox.dataset.active = mode;
   modesBox.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === mode)));
-  $('#orient').classList.toggle('hidden', mode !== 'timeline');   // solo le sirve a la linea del tiempo
+  // cada grupo de botones solo le sirve a un tipo de mapa
+  $('#orient').classList.toggle('hidden', mode !== 'timeline');
+  $('#cmLayout').classList.toggle('hidden', mode !== 'concept');
   /* Cada tipo trae su ejemplo. Un textarea que nadie ha tocado sigue a su
      texto de fabrica: cambiarlo aqui cambia el ejemplo, y si la persona ya
      escribio (o subio un archivo) lo suyo se queda. i18n.js usa la misma
@@ -589,18 +651,26 @@ modesBox.querySelectorAll('button').forEach(b => b.onclick = () => {
   showMode(); showPrompt(); preview();
 });
 
-/* ══════════════ direccion de la linea del tiempo ══════════════ */
-const orientBox = $('#orient');
-function showDir(){
-  orientBox.dataset.active = tlDir;
-  orientBox.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.dir === tlDir)));
+/* ══════════════ botones junto a "Vista previa" ══════════════ */
+/* Opciones con una pildora que se desliza: la direccion de la linea del
+   tiempo y el acomodo del mapa conceptual. `get`/`set` leen y cambian la
+   variable; la eleccion se guarda en localStorage con la clave `key`.
+   Devuelve la funcion que pinta el boton elegido. */
+function segmented(box, key, get, set){
+  const show = () => {
+    box.dataset.active = get();
+    box.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.value === get())));
+  };
+  box.querySelectorAll('button').forEach(b => b.onclick = () => {
+    if (b.dataset.value === get()) return;
+    set(b.dataset.value);
+    try { localStorage.setItem(key, get()); } catch (e) { /* no se recuerda */ }
+    show(); preview();
+  });
+  return show;
 }
-orientBox.querySelectorAll('button').forEach(b => b.onclick = () => {
-  if (b.dataset.dir === tlDir) return;
-  tlDir = b.dataset.dir;
-  try { localStorage.setItem('tlDir', tlDir); } catch (e) { /* no se recuerda */ }
-  showDir(); preview();
-});
+const showDir = segmented($('#orient'), 'tlDir', () => tlDir, v => { tlDir = v; });
+const showLayout = segmented($('#cmLayout'), 'cmLayout', () => cmLayout, v => { cmLayout = v; });
 
 /* ══════════════ prompt para IA ══════════════ */
 // la linea del tiempo tiene sus propias reglas (fechas y orden)
@@ -620,9 +690,9 @@ $('#copyPrompt').onclick = async () => {
 };
 
 // las pildoras se colocan sin animarse la primera vez
-const pills = [$('#pill'), $('.modes-pill'), $('.orient-pill')];
+const pills = [$('#pill'), $('.modes-pill'), ...document.querySelectorAll('.choice-pill')];
 pills.forEach(el => { el.style.transition = 'none'; });
-movePill(); showMode(); showDir(); showPrompt();
+movePill(); showMode(); showDir(); showLayout(); showPrompt();
 $('#pill').offsetWidth;
 pills.forEach(el => { el.style.transition = ''; });
 refresh(); preview();

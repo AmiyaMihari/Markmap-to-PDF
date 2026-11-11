@@ -152,13 +152,13 @@ def main():
             # horizontal by default; the vertical button turns the axis and is remembered
             axis = "(() => { const b = document.querySelector('#preview .tl-axis').getBBox(); return b.height > b.width ? 'vertical' : 'horizontal'; })()"
             assert page.evaluate(axis) == "horizontal"
-            page.locator('#orient button[data-dir="vertical"]').click()
+            page.locator('#orient button[data-value="vertical"]').click()
             page.wait_for_function(axis + " === 'vertical'")
             assert page.evaluate("localStorage.getItem('tlDir')") == "vertical"
             page.reload(wait_until="networkidle")
             page.wait_for_selector("#preview .tl-node")
             assert page.locator('button[data-mode="timeline"]').get_attribute("aria-checked") == "true"
-            assert page.locator('#orient button[data-dir="vertical"]').get_attribute("aria-checked") == "true"
+            assert page.locator('#orient button[data-value="vertical"]').get_attribute("aria-checked") == "true"
             page.wait_for_function(axis + " === 'vertical'")
             assert not errors, f"Browser errors: {errors}"
             browser.close()
